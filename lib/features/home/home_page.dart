@@ -52,14 +52,17 @@ class _HomePageState extends State<HomePage> {
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(content: Text(_radioPlayer.errorMessage!)),
-      );
+      ..showSnackBar(SnackBar(content: Text(_radioPlayer.errorMessage!)));
   }
 
   void _showNowPlaying(BuildContext sheetContext) {
     final channel = _radioPlayer.currentChannel;
-    if (channel == null) return;
+    if (channel == null) {
+      ScaffoldMessenger.of(sheetContext).showSnackBar(
+        const SnackBar(content: Text('Elige una estación para escuchar en vivo.')),
+      );
+      return;
+    }
 
     showModalBottomSheet<void>(
       context: sheetContext,
@@ -80,29 +83,44 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _openNowPlaying() => _showNowPlaying(context);
-
-  void _pushWithPersistentPlayer(Widget page) {
+  void _pushWithPersistentPlayer(Widget page, int selectedIndex) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => _PersistentPlayerRoute(
           radioPlayer: _radioPlayer,
           child: page,
+          selectedIndex: selectedIndex,
         ),
       ),
     );
   }
 
   void _openParticipate() {
-    _pushWithPersistentPlayer(const _ParticipatePage());
+    _pushWithPersistentPlayer(const _ParticipatePage(), 2);
   }
 
   void _openLatest() {
-    _pushWithPersistentPlayer(const LatestContentPage());
+    _pushWithPersistentPlayer(const LatestContentPage(), 3);
   }
 
   void _openPromotions() {
-    _pushWithPersistentPlayer(const PromotionsPage());
+    _pushWithPersistentPlayer(const PromotionsPage(), 0);
+  }
+
+  void _onNavigationSelected(int index) {
+    switch (index) {
+      case 0:
+        break;
+      case 1:
+        _showNowPlaying(context);
+        break;
+      case 2:
+        _openParticipate();
+        break;
+      case 3:
+        _openLatest();
+        break;
+    }
   }
 
   @override
@@ -111,101 +129,104 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: () async {
-                  final nextChannels = widget.apiClient.fetchSomosRadioChannels();
-                  setState(() => _channels = nextChannels);
-                  await nextChannels;
+        child: RefreshIndicator(
+          onRefresh: () async {
+            final nextChannels = widget.apiClient.fetchSomosRadioChannels();
+            setState(() => _channels = nextChannels);
+            await nextChannels;
+          },
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
+            children: [
+              const _BrandHeader(),
+              const SizedBox(height: 28),
+              Text(
+                '¿Qué quieres escuchar?',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(color: Colors.white70),
+              ),
+              const SizedBox(height: 14),
+              FutureBuilder<List<Channel>>(
+                future: _channels,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Padding(
+                      padding: EdgeInsets.all(40),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+
+                  if (snapshot.hasError) {
+                    return _ApiError(
+                      message: snapshot.error.toString(),
+                      onRetry: _reload,
+                    );
+                  }
+
+                  final channels = snapshot.data ?? const <Channel>[];
+                  if (channels.isEmpty) return const _EmptyChannels();
+
+                  return Column(
+                    children: channels
+                        .map(
+                          (channel) => Padding(
+                            padding: const EdgeInsets.only(bottom: 14),
+                            child: _StationCard(
+                              channel: channel,
+                              selected: channel.slug == currentChannel?.slug,
+                              playing: channel.slug == currentChannel?.slug &&
+                                  _radioPlayer.isPlaying,
+                              buffering: channel.slug == currentChannel?.slug &&
+                                  _radioPlayer.isBuffering,
+                              onTap: () => _playChannel(channel),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  );
                 },
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
-                  children: [
-                    const _BrandHeader(),
-                    const SizedBox(height: 28),
-                    Text(
-                      '¿Qué quieres escuchar?',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(color: Colors.white70),
-                    ),
-                    const SizedBox(height: 14),
-                    FutureBuilder<List<Channel>>(
-                      future: _channels,
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Padding(
-                            padding: EdgeInsets.all(40),
-                            child: Center(child: CircularProgressIndicator()),
-                          );
-                        }
-
-                        if (snapshot.hasError) {
-                          return _ApiError(
-                            message: snapshot.error.toString(),
-                            onRetry: _reload,
-                          );
-                        }
-
-                        final channels = snapshot.data ?? const <Channel>[];
-                        if (channels.isEmpty) return const _EmptyChannels();
-
-                        return Column(
-                          children: channels
-                              .map(
-                                (channel) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 14),
-                                  child: _StationCard(
-                                    channel: channel,
-                                    selected: channel.slug == currentChannel?.slug,
-                                    playing: channel.slug == currentChannel?.slug &&
-                                        _radioPlayer.isPlaying,
-                                    buffering: channel.slug == currentChannel?.slug &&
-                                        _radioPlayer.isBuffering,
-                                    onTap: () => _playChannel(channel),
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 14),
-                    const _SectionTitle(title: 'Explora'),
-                    const SizedBox(height: 10),
-                    _ExploreGrid(
-                      onParticipate: _openParticipate,
-                      onLatest: _openLatest,
-                      onPromotions: _openPromotions,
-                    ),
-                    if (AppConfig.isConceptDemo) ...[
-                      const SizedBox(height: 28),
-                      const Center(
-                        child: Text(
-                          'Concepto demostrativo · Propuesta no oficial',
-                          style: TextStyle(color: Colors.white38, fontSize: 11),
-                        ),
-                      ),
-                    ],
-                  ],
+              ),
+              const SizedBox(height: 14),
+              const _SectionTitle(title: 'Explora'),
+              const SizedBox(height: 10),
+              _ExploreGrid(
+                onParticipate: _openParticipate,
+                onLatest: _openLatest,
+                onPromotions: _openPromotions,
+              ),
+              if (AppConfig.isConceptDemo) ...[
+                const SizedBox(height: 28),
+                const Center(
+                  child: Text(
+                    'Concepto demostrativo · Propuesta no oficial',
+                    style: TextStyle(color: Colors.white38, fontSize: 11),
+                  ),
                 ),
-              ),
-            ),
-            if (currentChannel != null)
-              _MiniPlayer(
-                channel: currentChannel,
-                isPlaying: _radioPlayer.isPlaying,
-                isBuffering: _radioPlayer.isBuffering,
-                errorMessage: _radioPlayer.errorMessage,
-                onTap: _openNowPlaying,
-                onToggle: _radioPlayer.toggle,
-                onClose: _radioPlayer.stop,
-              ),
-          ],
+              ],
+            ],
+          ),
         ),
+      ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (currentChannel != null)
+            _MiniPlayer(
+              channel: currentChannel,
+              isPlaying: _radioPlayer.isPlaying,
+              isBuffering: _radioPlayer.isBuffering,
+              errorMessage: _radioPlayer.errorMessage,
+              onTap: () => _showNowPlaying(context),
+              onToggle: _radioPlayer.toggle,
+              onClose: _radioPlayer.stop,
+            ),
+          _AppNavigationBar(
+            selectedIndex: 0,
+            onDestinationSelected: _onNavigationSelected,
+          ),
+        ],
       ),
     );
   }
@@ -215,14 +236,21 @@ class _PersistentPlayerRoute extends StatelessWidget {
   const _PersistentPlayerRoute({
     required this.radioPlayer,
     required this.child,
+    required this.selectedIndex,
   });
 
   final RadioPlayerController radioPlayer;
   final Widget child;
+  final int selectedIndex;
 
   void _showNowPlaying(BuildContext context) {
     final channel = radioPlayer.currentChannel;
-    if (channel == null) return;
+    if (channel == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Elige una estación desde Inicio.')),
+      );
+      return;
+    }
 
     showModalBottomSheet<void>(
       context: context,
@@ -243,6 +271,40 @@ class _PersistentPlayerRoute extends StatelessWidget {
     );
   }
 
+  void _replace(BuildContext context, Widget page, int index) {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => _PersistentPlayerRoute(
+          radioPlayer: radioPlayer,
+          child: page,
+          selectedIndex: index,
+        ),
+      ),
+    );
+  }
+
+  void _navigate(BuildContext context, int index) {
+    if (index == selectedIndex) {
+      if (index == 1) _showNowPlaying(context);
+      return;
+    }
+
+    switch (index) {
+      case 0:
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        break;
+      case 1:
+        _showNowPlaying(context);
+        break;
+      case 2:
+        _replace(context, const _ParticipatePage(), 2);
+        break;
+      case 3:
+        _replace(context, const LatestContentPage(), 3);
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -251,9 +313,10 @@ class _PersistentPlayerRoute extends StatelessWidget {
         final channel = radioPlayer.currentChannel;
 
         return Scaffold(
-          body: Column(
+          body: child,
+          bottomNavigationBar: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(child: child),
               if (channel != null)
                 _MiniPlayer(
                   channel: channel,
@@ -264,10 +327,56 @@ class _PersistentPlayerRoute extends StatelessWidget {
                   onToggle: radioPlayer.toggle,
                   onClose: radioPlayer.stop,
                 ),
+              _AppNavigationBar(
+                selectedIndex: selectedIndex,
+                onDestinationSelected: (index) => _navigate(context, index),
+              ),
             ],
           ),
         );
       },
+    );
+  }
+}
+
+class _AppNavigationBar extends StatelessWidget {
+  const _AppNavigationBar({
+    required this.selectedIndex,
+    required this.onDestinationSelected,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onDestinationSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return NavigationBar(
+      selectedIndex: selectedIndex,
+      onDestinationSelected: onDestinationSelected,
+      backgroundColor: const Color(0xFF090909),
+      indicatorColor: AppTheme.orange,
+      destinations: const [
+        NavigationDestination(
+          icon: Icon(Icons.home_outlined),
+          selectedIcon: Icon(Icons.home_rounded, color: Colors.black),
+          label: 'Inicio',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.radio_outlined),
+          selectedIcon: Icon(Icons.radio_rounded, color: Colors.black),
+          label: 'En vivo',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.mic_none_rounded),
+          selectedIcon: Icon(Icons.mic_rounded, color: Colors.black),
+          label: 'Participa',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.newspaper_outlined),
+          selectedIcon: Icon(Icons.newspaper_rounded, color: Colors.black),
+          label: 'Lo último',
+        ),
+      ],
     );
   }
 }
@@ -286,11 +395,7 @@ class _BrandHeader extends StatelessWidget {
             color: AppTheme.orange,
             shape: BoxShape.circle,
           ),
-          child: const Icon(
-            Icons.radio_rounded,
-            color: Colors.black,
-            size: 29,
-          ),
+          child: const Icon(Icons.radio_rounded, color: Colors.black, size: 29),
         ),
         const SizedBox(width: 13),
         const Expanded(
@@ -317,9 +422,7 @@ class _BrandHeader extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-              color: AppTheme.orange.withValues(alpha: .65),
-            ),
+            border: Border.all(color: AppTheme.orange.withValues(alpha: .65)),
           ),
           child: const Text(
             'CONCEPTO',
@@ -482,7 +585,6 @@ class _ExploreGrid extends StatelessWidget {
         _ExploreCard(
           icon: Icons.local_offer_rounded,
           title: 'Promociones',
-          subtitle: 'Dinámicas y beneficios',
           onTap: onPromotions,
         ),
       ],
@@ -517,17 +619,11 @@ class _ExploreCard extends StatelessWidget {
             children: [
               Icon(icon, color: AppTheme.orange),
               const SizedBox(height: 10),
-              Text(
-                title,
-                style: const TextStyle(fontWeight: FontWeight.w800),
-              ),
+              Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
               if (subtitle.isNotEmpty)
                 Text(
                   subtitle,
-                  style: const TextStyle(
-                    color: Colors.white38,
-                    fontSize: 10,
-                  ),
+                  style: const TextStyle(color: Colors.white38, fontSize: 10),
                 ),
             ],
           ),
@@ -567,11 +663,7 @@ class _ParticipatePage extends StatelessWidget {
           padding: const EdgeInsets.all(20),
           children: [
             const SizedBox(height: 8),
-            const Icon(
-              Icons.forum_rounded,
-              color: AppTheme.orange,
-              size: 54,
-            ),
+            const Icon(Icons.forum_rounded, color: AppTheme.orange, size: 54),
             const SizedBox(height: 18),
             Text(
               'Tu voz también es parte de Somos',
@@ -615,20 +707,17 @@ class _ParticipatePage extends StatelessWidget {
             const _FutureFeature(
               icon: Icons.music_note_rounded,
               title: 'Pide tu canción',
-              text:
-                  'Funcionalidad preparada para futuras dinámicas de la estación.',
+              text: 'Funcionalidad preparada para futuras dinámicas de la estación.',
             ),
             const _FutureFeature(
               icon: Icons.emoji_events_rounded,
               title: 'Concursos y dinámicas',
-              text:
-                  'Un espacio para activar promociones y participación desde la app.',
+              text: 'Un espacio para activar promociones y participación desde la app.',
             ),
             const _FutureFeature(
               icon: Icons.poll_rounded,
               title: 'Encuestas',
-              text:
-                  'La audiencia podrá votar y participar en contenidos interactivos.',
+              text: 'La audiencia podrá votar y participar en contenidos interactivos.',
             ),
             if (AppConfig.isConceptDemo) ...[
               const SizedBox(height: 24),
@@ -676,34 +765,22 @@ class _ContactCard extends StatelessWidget {
                   color: AppTheme.orange.withValues(alpha: .14),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.chat_rounded,
-                  color: AppTheme.orange,
-                ),
+                child: const Icon(Icons.chat_rounded, color: AppTheme.orange),
               ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(fontWeight: FontWeight.w900),
-                    ),
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
                     const SizedBox(height: 3),
                     Text(
                       subtitle,
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 12,
-                      ),
+                      style: const TextStyle(color: Colors.white54, fontSize: 12),
                     ),
                     Text(
                       number,
-                      style: const TextStyle(
-                        color: Colors.white38,
-                        fontSize: 11,
-                      ),
+                      style: const TextStyle(color: Colors.white38, fontSize: 11),
                     ),
                   ],
                 ),
@@ -803,13 +880,12 @@ class _MiniPlayer extends StatelessWidget {
         onTap: onTap,
         child: Container(
           decoration: const BoxDecoration(
-            border: Border(
-              top: BorderSide(color: Color(0xFF2A2A2A)),
-            ),
+            border: Border(top: BorderSide(color: Color(0xFF2A2A2A))),
           ),
-          padding: const EdgeInsets.fromLTRB(18, 12, 12, 12),
+          padding: const EdgeInsets.fromLTRB(18, 10, 12, 10),
           child: SafeArea(
             top: false,
+            bottom: false,
             child: Row(
               children: [
                 Icon(
@@ -823,7 +899,9 @@ class _MiniPlayer extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'Somos Radio ${channel.frequency}',
+                        channel.frequency.toLowerCase().startsWith('somos radio')
+                            ? channel.frequency
+                            : 'Somos Radio ${channel.frequency}',
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                       Text(
@@ -939,11 +1017,7 @@ class _NowPlayingSheet extends StatelessWidget {
                   color: AppTheme.orange,
                   borderRadius: BorderRadius.circular(40),
                 ),
-                child: const Icon(
-                  Icons.radio_rounded,
-                  size: 88,
-                  color: Colors.black,
-                ),
+                child: const Icon(Icons.radio_rounded, size: 88, color: Colors.black),
               ),
               const SizedBox(height: 30),
               Text(
@@ -957,19 +1031,14 @@ class _NowPlayingSheet extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 channel.frequency,
-                style: const TextStyle(
-                  fontSize: 42,
-                  fontWeight: FontWeight.w900,
-                ),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w900),
               ),
               if (channel.city.isNotEmpty) ...[
                 const SizedBox(height: 5),
                 Text(
                   channel.city,
-                  style: const TextStyle(
-                    color: Colors.white60,
-                    fontSize: 16,
-                  ),
+                  style: const TextStyle(color: Colors.white60, fontSize: 16),
                 ),
               ],
               const Spacer(),
@@ -1026,11 +1095,7 @@ class _ApiError extends StatelessWidget {
         padding: const EdgeInsets.all(18),
         child: Column(
           children: [
-            const Icon(
-              Icons.cloud_off_rounded,
-              color: AppTheme.orange,
-              size: 34,
-            ),
+            const Icon(Icons.cloud_off_rounded, color: AppTheme.orange, size: 34),
             const SizedBox(height: 10),
             const Text('No pudimos cargar las estaciones.'),
             const SizedBox(height: 5),
@@ -1040,10 +1105,7 @@ class _ApiError extends StatelessWidget {
               style: const TextStyle(color: Colors.white54, fontSize: 11),
             ),
             const SizedBox(height: 12),
-            FilledButton(
-              onPressed: onRetry,
-              child: const Text('Reintentar'),
-            ),
+            FilledButton(onPressed: onRetry, child: const Text('Reintentar')),
           ],
         ),
       ),
