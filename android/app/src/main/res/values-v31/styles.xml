@@ -4,7 +4,6 @@
         <item name="android:windowSplashScreenBackground">@color/somos_black</item>
         <item name="android:windowSplashScreenAnimatedIcon">@drawable/somos_icon_foreground</item>
         <item name="android:windowSplashScreenIconBackgroundColor">@color/somos_black</item>
-        <item name="android:postSplashScreenTheme">@style/NormalTheme</item>
         <item name="android:navigationBarColor">@color/somos_black</item>
         <item name="android:statusBarColor">@color/somos_black</item>
     </style>
