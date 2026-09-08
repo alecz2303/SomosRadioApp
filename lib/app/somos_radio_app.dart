@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../core/api/radio_api_client.dart';
 import '../core/theme/app_theme.dart';
-import '../features/home/home_page.dart';
+import '../features/splash/brand_splash_page.dart';
 
 class SomosRadioApp extends StatelessWidget {
   const SomosRadioApp({super.key});
@@ -13,7 +12,7 @@ class SomosRadioApp extends StatelessWidget {
       title: 'Somos Radio',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
-      home: HomePage(apiClient: RadioApiClient()),
+      home: const BrandSplashPage(),
     );
   }
 }
