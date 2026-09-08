@@ -1,0 +1,100 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:just_audio/just_audio.dart';
+
+import '../models/channel.dart';
+
+class RadioPlayerController extends ChangeNotifier {
+  RadioPlayerController() {
+    _playingSubscription = _player.playingStream.listen((_) => notifyListeners());
+    _stateSubscription = _player.processingStateStream.listen((_) => notifyListeners());
+    _errorSubscription = _player.errorStream.listen((error) {
+      errorMessage = error.message;
+      notifyListeners();
+    });
+  }
+
+  final AudioPlayer _player = AudioPlayer();
+
+  late final StreamSubscription<bool> _playingSubscription;
+  late final StreamSubscription<ProcessingState> _stateSubscription;
+  late final StreamSubscription<PlayerException> _errorSubscription;
+
+  Channel? currentChannel;
+  String? errorMessage;
+  bool _switchingStation = false;
+
+  bool get isPlaying => _player.playing;
+
+  bool get isBuffering =>
+      _switchingStation ||
+      _player.processingState == ProcessingState.loading ||
+      _player.processingState == ProcessingState.buffering;
+
+  Future<void> playChannel(Channel channel) async {
+    if (channel.streamUrl.trim().isEmpty) {
+      errorMessage = 'Esta estación todavía no tiene un stream publicado.';
+      notifyListeners();
+      return;
+    }
+
+    errorMessage = null;
+
+    if (currentChannel?.slug == channel.slug) {
+      if (_player.playing) {
+        await _player.pause();
+      } else {
+        unawaited(_player.play());
+      }
+      notifyListeners();
+      return;
+    }
+
+    currentChannel = channel;
+    _switchingStation = true;
+    notifyListeners();
+
+    try {
+      await _player.setUrl(channel.streamUrl);
+      _switchingStation = false;
+      notifyListeners();
+      unawaited(_player.play());
+    } on PlayerException catch (error) {
+      _switchingStation = false;
+      errorMessage = error.message;
+      notifyListeners();
+    } catch (_) {
+      _switchingStation = false;
+      errorMessage = 'No fue posible iniciar la transmisión.';
+      notifyListeners();
+    }
+  }
+
+  Future<void> toggle() async {
+    if (currentChannel == null) return;
+
+    if (_player.playing) {
+      await _player.pause();
+    } else {
+      unawaited(_player.play());
+    }
+    notifyListeners();
+  }
+
+  Future<void> stop() async {
+    await _player.stop();
+    currentChannel = null;
+    errorMessage = null;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    unawaited(_playingSubscription.cancel());
+    unawaited(_stateSubscription.cancel());
+    unawaited(_errorSubscription.cancel());
+    unawaited(_player.dispose());
+    super.dispose();
+  }
+}
