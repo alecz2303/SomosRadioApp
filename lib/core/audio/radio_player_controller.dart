@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 
 import '../models/channel.dart';
 
@@ -56,7 +57,23 @@ class RadioPlayerController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _player.setUrl(channel.streamUrl);
+      final title = channel.frequency.isNotEmpty ? channel.frequency : channel.name;
+      final subtitle = channel.city.isNotEmpty ? channel.city : 'Chiapas';
+
+      await _player.setAudioSource(
+        AudioSource.uri(
+          Uri.parse(channel.streamUrl),
+          tag: MediaItem(
+            id: channel.slug,
+            album: 'Somos Radio Chiapas',
+            title: title,
+            artist: subtitle,
+            displayTitle: 'Somos Radio $title',
+            displaySubtitle: subtitle,
+            isLive: true,
+          ),
+        ),
+      );
       _switchingStation = false;
       notifyListeners();
       unawaited(_player.play());
