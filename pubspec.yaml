@@ -13,6 +13,7 @@ dependencies:
   http: ^1.2.2
   just_audio: ^0.10.6
   just_audio_background: ^0.0.1-beta.17
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:
