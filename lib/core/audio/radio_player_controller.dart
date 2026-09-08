@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 
@@ -14,7 +15,12 @@ class RadioPlayerController extends ChangeNotifier {
       errorMessage = error.message;
       notifyListeners();
     });
+
+    _widgetChannel.setMethodCallHandler(_handleWidgetMethodCall);
+    unawaited(_loadInitialWidgetStation());
   }
+
+  static const MethodChannel _widgetChannel = MethodChannel('somos_radio/widget');
 
   final AudioPlayer _player = AudioPlayer();
 
@@ -26,6 +32,7 @@ class RadioPlayerController extends ChangeNotifier {
   String? errorMessage;
   bool _switchingStation = false;
   List<Channel> _availableChannels = const [];
+  String? _pendingWidgetStationSlug;
 
   bool get isPlaying => _player.playing;
 
@@ -38,7 +45,54 @@ class RadioPlayerController extends ChangeNotifier {
 
   void setAvailableChannels(List<Channel> channels) {
     _availableChannels = List.unmodifiable(channels);
+    _playPendingWidgetStationIfPossible();
     notifyListeners();
+  }
+
+  Future<void> _loadInitialWidgetStation() async {
+    try {
+      final slug = await _widgetChannel.invokeMethod<String>('getInitialStation');
+      if (slug == null || slug.trim().isEmpty) return;
+
+      _pendingWidgetStationSlug = slug;
+      _playPendingWidgetStationIfPossible();
+    } on MissingPluginException {
+      // Non-Android platforms do not provide the widget bridge.
+    } on PlatformException {
+      // The widget is an optional integration; normal playback must keep working.
+    }
+  }
+
+  Future<dynamic> _handleWidgetMethodCall(MethodCall call) async {
+    if (call.method != 'stationSelected') return null;
+
+    final slug = call.arguments?.toString();
+    if (slug == null || slug.trim().isEmpty) return null;
+
+    _pendingWidgetStationSlug = slug;
+    _playPendingWidgetStationIfPossible();
+    return null;
+  }
+
+  void _playPendingWidgetStationIfPossible() {
+    final slug = _pendingWidgetStationSlug;
+    if (slug == null || _availableChannels.isEmpty) return;
+
+    Channel? station;
+    for (final channel in _availableChannels) {
+      if (channel.slug == slug) {
+        station = channel;
+        break;
+      }
+    }
+
+    if (station == null) {
+      _pendingWidgetStationSlug = null;
+      return;
+    }
+
+    _pendingWidgetStationSlug = null;
+    unawaited(playChannel(station));
   }
 
   Future<void> playChannel(Channel channel) async {
@@ -122,6 +176,7 @@ class RadioPlayerController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _widgetChannel.setMethodCallHandler(null);
     unawaited(_playingSubscription.cancel());
     unawaited(_stateSubscription.cancel());
     unawaited(_errorSubscription.cancel());
