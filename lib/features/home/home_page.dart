@@ -51,15 +51,17 @@ class _HomePageState extends State<HomePage> {
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(_radioPlayer.errorMessage!)));
+      ..showSnackBar(
+        SnackBar(content: Text(_radioPlayer.errorMessage!)),
+      );
   }
 
-  void _openNowPlaying() {
+  void _showNowPlaying(BuildContext sheetContext) {
     final channel = _radioPlayer.currentChannel;
     if (channel == null) return;
 
     showModalBottomSheet<void>(
-      context: context,
+      context: sheetContext,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => AnimatedBuilder(
@@ -77,16 +79,25 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _openParticipate() {
+  void _openNowPlaying() => _showNowPlaying(context);
+
+  void _pushWithPersistentPlayer(Widget page) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const _ParticipatePage()),
+      MaterialPageRoute(
+        builder: (_) => _PersistentPlayerRoute(
+          radioPlayer: _radioPlayer,
+          child: page,
+        ),
+      ),
     );
   }
 
+  void _openParticipate() {
+    _pushWithPersistentPlayer(const _ParticipatePage());
+  }
+
   void _openLatest() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const LatestContentPage()),
-    );
+    _pushWithPersistentPlayer(const LatestContentPage());
   }
 
   @override
@@ -120,8 +131,7 @@ class _HomePageState extends State<HomePage> {
                     FutureBuilder<List<Channel>>(
                       future: _channels,
                       builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
                           return const Padding(
                             padding: EdgeInsets.all(40),
                             child: Center(child: CircularProgressIndicator()),
@@ -135,29 +145,21 @@ class _HomePageState extends State<HomePage> {
                           );
                         }
 
-                        final channels =
-                            snapshot.data ?? const <Channel>[];
-
-                        if (channels.isEmpty) {
-                          return const _EmptyChannels();
-                        }
+                        final channels = snapshot.data ?? const <Channel>[];
+                        if (channels.isEmpty) return const _EmptyChannels();
 
                         return Column(
                           children: channels
                               .map(
                                 (channel) => Padding(
-                                  padding:
-                                      const EdgeInsets.only(bottom: 14),
+                                  padding: const EdgeInsets.only(bottom: 14),
                                   child: _StationCard(
                                     channel: channel,
-                                    selected:
-                                        channel.slug == currentChannel?.slug,
-                                    playing:
-                                        channel.slug == currentChannel?.slug &&
-                                            _radioPlayer.isPlaying,
-                                    buffering:
-                                        channel.slug == currentChannel?.slug &&
-                                            _radioPlayer.isBuffering,
+                                    selected: channel.slug == currentChannel?.slug,
+                                    playing: channel.slug == currentChannel?.slug &&
+                                        _radioPlayer.isPlaying,
+                                    buffering: channel.slug == currentChannel?.slug &&
+                                        _radioPlayer.isBuffering,
                                     onTap: () => _playChannel(channel),
                                   ),
                                 ),
@@ -178,8 +180,7 @@ class _HomePageState extends State<HomePage> {
                       const Center(
                         child: Text(
                           'Concepto demostrativo · Propuesta no oficial',
-                          style:
-                              TextStyle(color: Colors.white38, fontSize: 11),
+                          style: TextStyle(color: Colors.white38, fontSize: 11),
                         ),
                       ),
                     ],
@@ -200,6 +201,67 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _PersistentPlayerRoute extends StatelessWidget {
+  const _PersistentPlayerRoute({
+    required this.radioPlayer,
+    required this.child,
+  });
+
+  final RadioPlayerController radioPlayer;
+  final Widget child;
+
+  void _showNowPlaying(BuildContext context) {
+    final channel = radioPlayer.currentChannel;
+    if (channel == null) return;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AnimatedBuilder(
+        animation: radioPlayer,
+        builder: (context, _) {
+          final activeChannel = radioPlayer.currentChannel ?? channel;
+          return _NowPlayingSheet(
+            channel: activeChannel,
+            isPlaying: radioPlayer.isPlaying,
+            isBuffering: radioPlayer.isBuffering,
+            onToggle: radioPlayer.toggle,
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: radioPlayer,
+      builder: (context, _) {
+        final channel = radioPlayer.currentChannel;
+
+        return Scaffold(
+          body: Column(
+            children: [
+              Expanded(child: child),
+              if (channel != null)
+                _MiniPlayer(
+                  channel: channel,
+                  isPlaying: radioPlayer.isPlaying,
+                  isBuffering: radioPlayer.isBuffering,
+                  errorMessage: radioPlayer.errorMessage,
+                  onTap: () => _showNowPlaying(context),
+                  onToggle: radioPlayer.toggle,
+                  onClose: radioPlayer.stop,
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -294,11 +356,7 @@ class _StationCard extends StatelessWidget {
                   children: [
                     const Row(
                       children: [
-                        Icon(
-                          Icons.circle,
-                          size: 8,
-                          color: Colors.redAccent,
-                        ),
+                        Icon(Icons.circle, size: 8, color: Colors.redAccent),
                         SizedBox(width: 7),
                         Text(
                           'EN VIVO',
@@ -345,9 +403,7 @@ class _StationCard extends StatelessWidget {
                         ),
                       )
                     : Icon(
-                        playing
-                            ? Icons.pause_rounded
-                            : Icons.play_arrow_rounded,
+                        playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
                         color: Colors.black,
                         size: 34,
                       ),
