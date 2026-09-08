@@ -25,7 +25,10 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _reload() {
-    setState(() => _channels = widget.apiClient.fetchSomosRadioChannels());
+    final nextChannels = widget.apiClient.fetchSomosRadioChannels();
+    setState(() {
+      _channels = nextChannels;
+    });
   }
 
   @override
@@ -37,8 +40,11 @@ class _HomePageState extends State<HomePage> {
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () async {
-                  _reload();
-                  await _channels;
+                  final nextChannels = widget.apiClient.fetchSomosRadioChannels();
+                  setState(() {
+                    _channels = nextChannels;
+                  });
+                  await nextChannels;
                 },
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
