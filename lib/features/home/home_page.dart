@@ -7,6 +7,7 @@ import '../../core/config/app_config.dart';
 import '../../core/models/channel.dart';
 import '../../core/theme/app_theme.dart';
 import '../news/latest_content_page.dart';
+import '../promotions/promotions_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({required this.apiClient, super.key});
@@ -100,6 +101,10 @@ class _HomePageState extends State<HomePage> {
     _pushWithPersistentPlayer(const LatestContentPage());
   }
 
+  void _openPromotions() {
+    _pushWithPersistentPlayer(const PromotionsPage());
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentChannel = _radioPlayer.currentChannel;
@@ -174,6 +179,7 @@ class _HomePageState extends State<HomePage> {
                     _ExploreGrid(
                       onParticipate: _openParticipate,
                       onLatest: _openLatest,
+                      onPromotions: _openPromotions,
                     ),
                     if (AppConfig.isConceptDemo) ...[
                       const SizedBox(height: 28),
@@ -439,10 +445,12 @@ class _ExploreGrid extends StatelessWidget {
   const _ExploreGrid({
     required this.onParticipate,
     required this.onLatest,
+    required this.onPromotions,
   });
 
   final VoidCallback onParticipate;
   final VoidCallback onLatest;
+  final VoidCallback onPromotions;
 
   @override
   Widget build(BuildContext context) {
@@ -471,9 +479,11 @@ class _ExploreGrid extends StatelessWidget {
           subtitle: 'Contenido real',
           onTap: onLatest,
         ),
-        const _ExploreCard(
+        _ExploreCard(
           icon: Icons.local_offer_rounded,
           title: 'Promociones',
+          subtitle: 'Dinámicas y beneficios',
+          onTap: onPromotions,
         ),
       ],
     );
