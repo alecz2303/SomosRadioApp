@@ -20,6 +20,10 @@ class RadioApiClient {
     );
     final response = await _client.get(uri).timeout(const Duration(seconds: 10));
 
+    if (response.statusCode == 404 && AppConfig.isConceptDemo) {
+      return _demoChannels;
+    }
+
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw RadioApiException('La API respondió ${response.statusCode}.');
     }
@@ -55,6 +59,7 @@ class RadioApiClient {
       metadata: {
         'frequency': '89.1 FM',
         'city': 'Tuxtla Gutiérrez',
+        'source': 'demo',
       },
     ),
     Channel(
@@ -66,6 +71,7 @@ class RadioApiClient {
       metadata: {
         'frequency': '102.9 FM',
         'city': 'San Cristóbal de las Casas',
+        'source': 'demo',
       },
     ),
   ];
