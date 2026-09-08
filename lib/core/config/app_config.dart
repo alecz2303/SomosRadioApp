@@ -3,11 +3,12 @@ class AppConfig {
 
   static const stationSlug = 'somos-radio';
 
-  /// Configurable al compilar:
-  /// flutter run --dart-define=RADIO_API_BASE_URL=https://tu-api.com/api/v1
+  /// URL pública de radio-api.
+  /// Puede sobrescribirse al compilar con:
+  /// flutter run --dart-define=RADIO_API_BASE_URL=https://otra-api.com/api/v1
   static const radioApiBaseUrl = String.fromEnvironment(
     'RADIO_API_BASE_URL',
-    defaultValue: '',
+    defaultValue: 'https://radio-api.djira.xyz/api/v1',
   );
 
   static const isConceptDemo = true;
