@@ -38,6 +38,10 @@ android {
     }
 }
 
+dependencies {
+    implementation("androidx.media:media:1.7.0")
+}
+
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
