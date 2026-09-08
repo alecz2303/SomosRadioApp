@@ -35,7 +35,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
-        android:text="Chiapas"
+        android:text="Toca una estación para escuchar"
         android:textColor="#9E9E9E"
         android:textSize="11sp" />
 
