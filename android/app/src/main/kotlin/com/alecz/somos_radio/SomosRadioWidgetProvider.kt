@@ -6,10 +6,11 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.media.browse.MediaBrowser
-import android.media.session.MediaController
 import android.os.Bundle
 import android.widget.RemoteViews
+import androidx.media.MediaBrowserServiceCompat
+import android.support.v4.media.MediaBrowserCompat
+import android.support.v4.media.session.MediaControllerCompat
 
 class SomosRadioWidgetProvider : AppWidgetProvider() {
     companion object {
@@ -85,12 +86,12 @@ class SomosRadioWidgetProvider : AppWidgetProvider() {
 
     private fun playStation(context: Context, stationSlug: String) {
         val pendingResult = goAsync()
-        lateinit var browser: MediaBrowser
+        lateinit var browser: MediaBrowserCompat
 
-        val callback = object : MediaBrowser.ConnectionCallback() {
+        val callback = object : MediaBrowserCompat.ConnectionCallback() {
             override fun onConnected() {
                 try {
-                    val controller = MediaController(context, browser.sessionToken)
+                    val controller = MediaControllerCompat(context, browser.sessionToken)
                     controller.transportControls.playFromMediaId(stationSlug, Bundle.EMPTY)
                 } finally {
                     browser.disconnect()
@@ -99,15 +100,17 @@ class SomosRadioWidgetProvider : AppWidgetProvider() {
             }
 
             override fun onConnectionFailed() {
+                browser.disconnect()
                 pendingResult.finish()
             }
 
             override fun onConnectionSuspended() {
+                browser.disconnect()
                 pendingResult.finish()
             }
         }
 
-        browser = MediaBrowser(
+        browser = MediaBrowserCompat(
             context,
             ComponentName(context.packageName, "com.ryanheise.audioservice.AudioService"),
             callback,
