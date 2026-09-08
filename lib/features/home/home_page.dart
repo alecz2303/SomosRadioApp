@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api/radio_api_client.dart';
+import '../../core/audio/radio_player_controller.dart';
 import '../../core/config/app_config.dart';
 import '../../core/models/channel.dart';
 import '../../core/theme/app_theme.dart';
@@ -16,12 +17,26 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late Future<List<Channel>> _channels;
-  Channel? _selectedChannel;
+  late final RadioPlayerController _radioPlayer;
 
   @override
   void initState() {
     super.initState();
     _channels = widget.apiClient.fetchSomosRadioChannels();
+    _radioPlayer = RadioPlayerController()..addListener(_onPlayerChanged);
+  }
+
+  @override
+  void dispose() {
+    _radioPlayer.removeListener(_onPlayerChanged);
+    _radioPlayer.dispose();
+    super.dispose();
+  }
+
+  void _onPlayerChanged() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   void _reload() {
@@ -31,8 +46,22 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  Future<void> _playChannel(Channel channel) async {
+    await _radioPlayer.playChannel(channel);
+
+    if (!mounted || _radioPlayer.errorMessage == null) return;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(_radioPlayer.errorMessage!)),
+      );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final currentChannel = _radioPlayer.currentChannel;
+
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -87,10 +116,10 @@ class _HomePageState extends State<HomePage> {
                                   padding: const EdgeInsets.only(bottom: 14),
                                   child: _StationCard(
                                     channel: channel,
-                                    selected: channel.slug == _selectedChannel?.slug,
-                                    onTap: () {
-                                      setState(() => _selectedChannel = channel);
-                                    },
+                                    selected: channel.slug == currentChannel?.slug,
+                                    playing: channel.slug == currentChannel?.slug && _radioPlayer.isPlaying,
+                                    buffering: channel.slug == currentChannel?.slug && _radioPlayer.isBuffering,
+                                    onTap: () => _playChannel(channel),
                                   ),
                                 ),
                               )
@@ -115,10 +144,14 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
-            if (_selectedChannel != null)
+            if (currentChannel != null)
               _MiniPlayer(
-                channel: _selectedChannel!,
-                onClose: () => setState(() => _selectedChannel = null),
+                channel: currentChannel,
+                isPlaying: _radioPlayer.isPlaying,
+                isBuffering: _radioPlayer.isBuffering,
+                errorMessage: _radioPlayer.errorMessage,
+                onToggle: _radioPlayer.toggle,
+                onClose: _radioPlayer.stop,
               ),
           ],
         ),
@@ -184,11 +217,15 @@ class _StationCard extends StatelessWidget {
   const _StationCard({
     required this.channel,
     required this.selected,
+    required this.playing,
+    required this.buffering,
     required this.onTap,
   });
 
   final Channel channel;
   final bool selected;
+  final bool playing;
+  final bool buffering;
   final VoidCallback onTap;
 
   @override
@@ -243,11 +280,21 @@ class _StationCard extends StatelessWidget {
                   color: selected ? Colors.white : AppTheme.orange,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  selected ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                  color: Colors.black,
-                  size: 34,
-                ),
+                alignment: Alignment.center,
+                child: buffering
+                    ? const SizedBox(
+                        width: 23,
+                        height: 23,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: Colors.black,
+                        ),
+                      )
+                    : Icon(
+                        playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                        color: Colors.black,
+                        size: 34,
+                      ),
               ),
             ],
           ),
@@ -320,10 +367,21 @@ class _ExploreGrid extends StatelessWidget {
 }
 
 class _MiniPlayer extends StatelessWidget {
-  const _MiniPlayer({required this.channel, required this.onClose});
+  const _MiniPlayer({
+    required this.channel,
+    required this.isPlaying,
+    required this.isBuffering,
+    required this.errorMessage,
+    required this.onToggle,
+    required this.onClose,
+  });
 
   final Channel channel;
-  final VoidCallback onClose;
+  final bool isPlaying;
+  final bool isBuffering;
+  final String? errorMessage;
+  final Future<void> Function() onToggle;
+  final Future<void> Function() onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -337,30 +395,58 @@ class _MiniPlayer extends StatelessWidget {
         top: false,
         child: Row(
           children: [
-            const Icon(Icons.graphic_eq_rounded, color: AppTheme.orange),
+            Icon(
+              isPlaying ? Icons.graphic_eq_rounded : Icons.radio_rounded,
+              color: AppTheme.orange,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(channel.frequency, style: const TextStyle(fontWeight: FontWeight.w800)),
                   Text(
-                    channel.city.isEmpty ? 'Somos Radio' : channel.city,
-                    style: const TextStyle(color: Colors.white54, fontSize: 11),
+                    channel.frequency,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  Text(
+                    errorMessage ??
+                        (channel.city.isEmpty ? 'Somos Radio' : channel.city),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: errorMessage == null ? Colors.white54 : Colors.redAccent,
+                      fontSize: 11,
+                    ),
                   ),
                 ],
               ),
             ),
             IconButton(
-              onPressed: () {},
-              icon: const Icon(Icons.play_arrow_rounded),
+              onPressed: isBuffering ? null : () => onToggle(),
+              icon: isBuffering
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.3,
+                        color: Colors.black,
+                      ),
+                    )
+                  : Icon(
+                      isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                    ),
               style: IconButton.styleFrom(
                 backgroundColor: AppTheme.orange,
                 foregroundColor: Colors.black,
+                disabledBackgroundColor: AppTheme.orange,
+                disabledForegroundColor: Colors.black,
               ),
             ),
-            IconButton(onPressed: onClose, icon: const Icon(Icons.close_rounded)),
+            IconButton(
+              onPressed: () => onClose(),
+              icon: const Icon(Icons.close_rounded),
+            ),
           ],
         ),
       ),
@@ -384,7 +470,11 @@ class _ApiError extends StatelessWidget {
             const SizedBox(height: 10),
             const Text('No pudimos cargar las estaciones.'),
             const SizedBox(height: 5),
-            Text(message, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white54, fontSize: 11),
+            ),
             const SizedBox(height: 12),
             FilledButton(onPressed: onRetry, child: const Text('Reintentar')),
           ],
