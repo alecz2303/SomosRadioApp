@@ -11,7 +11,7 @@ Future<void> initializeRadioAudioService() async {
       androidNotificationChannelId: 'com.alecz.somos_radio.audio',
       androidNotificationChannelName: 'Somos Radio',
       androidNotificationOngoing: true,
-      androidStopForegroundOnPause: false,
+      androidStopForegroundOnPause: true,
     ),
   );
 }
