@@ -25,8 +25,14 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _channels = widget.apiClient.fetchSomosRadioChannels();
     _radioPlayer = RadioPlayerController()..addListener(_onPlayerChanged);
+    _channels = _loadChannels();
+  }
+
+  Future<List<Channel>> _loadChannels() async {
+    final channels = await widget.apiClient.fetchSomosRadioChannels();
+    _radioPlayer.setAvailableChannels(channels);
+    return channels;
   }
 
   @override
@@ -41,8 +47,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _reload() {
-    final nextChannels = widget.apiClient.fetchSomosRadioChannels();
-    setState(() => _channels = nextChannels);
+    setState(() => _channels = _loadChannels());
   }
 
   Future<void> _playChannel(Channel channel) async {
@@ -74,9 +79,11 @@ class _HomePageState extends State<HomePage> {
           final activeChannel = _radioPlayer.currentChannel ?? channel;
           return _NowPlayingSheet(
             channel: activeChannel,
+            channels: _radioPlayer.availableChannels,
             isPlaying: _radioPlayer.isPlaying,
             isBuffering: _radioPlayer.isBuffering,
             onToggle: _radioPlayer.toggle,
+            onSelectChannel: _radioPlayer.playChannel,
           );
         },
       ),
@@ -131,7 +138,7 @@ class _HomePageState extends State<HomePage> {
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
-            final nextChannels = widget.apiClient.fetchSomosRadioChannels();
+            final nextChannels = _loadChannels();
             setState(() => _channels = nextChannels);
             await nextChannels;
           },
@@ -262,9 +269,11 @@ class _PersistentPlayerRoute extends StatelessWidget {
           final activeChannel = radioPlayer.currentChannel ?? channel;
           return _NowPlayingSheet(
             channel: activeChannel,
+            channels: radioPlayer.availableChannels,
             isPlaying: radioPlayer.isPlaying,
             isBuffering: radioPlayer.isBuffering,
             onToggle: radioPlayer.toggle,
+            onSelectChannel: radioPlayer.playChannel,
           );
         },
       ),
@@ -451,6 +460,10 @@ class _StationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final subtitle = [channel.city, channel.callsign]
+        .where((value) => value.isNotEmpty)
+        .join(' · ');
+
     return Card(
       child: InkWell(
         onTap: onTap,
@@ -485,9 +498,9 @@ class _StationCard extends StatelessWidget {
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    if (channel.city.isNotEmpty)
+                    if (subtitle.isNotEmpty)
                       Text(
-                        channel.city,
+                        subtitle,
                         style: const TextStyle(color: Colors.white60),
                       ),
                   ],
@@ -899,16 +912,11 @@ class _MiniPlayer extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        channel.frequency.toLowerCase().startsWith('somos radio')
-                            ? channel.frequency
-                            : 'Somos Radio ${channel.frequency}',
+                        channel.displayName,
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                       Text(
-                        errorMessage ??
-                            (channel.city.isEmpty
-                                ? 'En vivo'
-                                : '${channel.city} · En vivo'),
+                        errorMessage ?? '${channel.city} · En vivo',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -960,20 +968,28 @@ class _MiniPlayer extends StatelessWidget {
 class _NowPlayingSheet extends StatelessWidget {
   const _NowPlayingSheet({
     required this.channel,
+    required this.channels,
     required this.isPlaying,
     required this.isBuffering,
     required this.onToggle,
+    required this.onSelectChannel,
   });
 
   final Channel channel;
+  final List<Channel> channels;
   final bool isPlaying;
   final bool isBuffering;
   final Future<void> Function() onToggle;
+  final Future<void> Function(Channel channel) onSelectChannel;
 
   @override
   Widget build(BuildContext context) {
+    final stationSubtitle = [channel.city, channel.callsign]
+        .where((value) => value.isNotEmpty)
+        .join(' · ');
+
     return Container(
-      height: MediaQuery.sizeOf(context).height * .72,
+      height: MediaQuery.sizeOf(context).height * .78,
       decoration: const BoxDecoration(
         color: Color(0xFF0C0C0C),
         borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
@@ -981,7 +997,7 @@ class _NowPlayingSheet extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 14, 24, 28),
+          padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
           child: Column(
             children: [
               Container(
@@ -992,7 +1008,7 @@ class _NowPlayingSheet extends StatelessWidget {
                   borderRadius: BorderRadius.circular(99),
                 ),
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 24),
               const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -1011,15 +1027,15 @@ class _NowPlayingSheet extends StatelessWidget {
               ),
               const Spacer(),
               Container(
-                width: 170,
-                height: 170,
+                width: 145,
+                height: 145,
                 decoration: BoxDecoration(
                   color: AppTheme.orange,
-                  borderRadius: BorderRadius.circular(40),
+                  borderRadius: BorderRadius.circular(36),
                 ),
-                child: const Icon(Icons.radio_rounded, size: 88, color: Colors.black),
+                child: const Icon(Icons.radio_rounded, size: 76, color: Colors.black),
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 22),
               Text(
                 'SOMOS RADIO',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -1028,23 +1044,53 @@ class _NowPlayingSheet extends StatelessWidget {
                       letterSpacing: 2,
                     ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 channel.frequency,
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w900),
               ),
-              if (channel.city.isNotEmpty) ...[
-                const SizedBox(height: 5),
+              if (stationSubtitle.isNotEmpty) ...[
+                const SizedBox(height: 4),
                 Text(
-                  channel.city,
-                  style: const TextStyle(color: Colors.white60, fontSize: 16),
+                  stationSubtitle,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white60, fontSize: 14),
+                ),
+              ],
+              if (channels.length > 1) ...[
+                const SizedBox(height: 22),
+                const Text(
+                  'CAMBIAR ESTACIÓN',
+                  style: TextStyle(
+                    color: Colors.white38,
+                    letterSpacing: 1.7,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: channels.take(2).map((candidate) {
+                    final selected = candidate.slug == channel.slug;
+                    return Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 5),
+                        child: _StationSwitchButton(
+                          channel: candidate,
+                          selected: selected,
+                          disabled: isBuffering,
+                          onTap: () => onSelectChannel(candidate),
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 ),
               ],
               const Spacer(),
               SizedBox(
-                width: 82,
-                height: 82,
+                width: 78,
+                height: 78,
                 child: IconButton(
                   onPressed: isBuffering ? null : () => onToggle(),
                   style: IconButton.styleFrom(
@@ -1065,14 +1111,75 @@ class _NowPlayingSheet extends StatelessWidget {
                           isPlaying
                               ? Icons.pause_rounded
                               : Icons.play_arrow_rounded,
-                          size: 46,
+                          size: 44,
                         ),
                 ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 14),
               const Text(
                 'Transmisión en vivo',
                 style: TextStyle(color: Colors.white38, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StationSwitchButton extends StatelessWidget {
+  const _StationSwitchButton({
+    required this.channel,
+    required this.selected,
+    required this.disabled,
+    required this.onTap,
+  });
+
+  final Channel channel;
+  final bool selected;
+  final bool disabled;
+  final Future<void> Function() onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected
+          ? AppTheme.orange
+          : Colors.white.withValues(alpha: .05),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: selected || disabled ? null : () => onTap(),
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: selected ? AppTheme.orange : Colors.white12,
+            ),
+          ),
+          child: Column(
+            children: [
+              Text(
+                channel.frequency,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: selected ? Colors.black : Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                channel.city,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: selected ? Colors.black54 : Colors.white38,
+                  fontSize: 9,
+                ),
               ),
             ],
           ),
