@@ -25,6 +25,7 @@ class RadioPlayerController extends ChangeNotifier {
   Channel? currentChannel;
   String? errorMessage;
   bool _switchingStation = false;
+  List<Channel> _availableChannels = const [];
 
   bool get isPlaying => _player.playing;
 
@@ -32,6 +33,13 @@ class RadioPlayerController extends ChangeNotifier {
       _switchingStation ||
       _player.processingState == ProcessingState.loading ||
       _player.processingState == ProcessingState.buffering;
+
+  List<Channel> get availableChannels => List.unmodifiable(_availableChannels);
+
+  void setAvailableChannels(List<Channel> channels) {
+    _availableChannels = List.unmodifiable(channels);
+    notifyListeners();
+  }
 
   Future<void> playChannel(Channel channel) async {
     if (channel.streamUrl.trim().isEmpty) {
