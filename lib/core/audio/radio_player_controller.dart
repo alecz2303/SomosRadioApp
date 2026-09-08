@@ -74,7 +74,7 @@ class RadioPlayerController extends ChangeNotifier {
             album: 'Somos Radio Chiapas',
             title: title,
             artist: subtitle,
-            displayTitle: 'Somos Radio $title',
+            displayTitle: channel.displayName,
             displaySubtitle: subtitle,
             isLive: true,
           ),
