@@ -16,7 +16,7 @@ class RadioApiClient {
     }
 
     final uri = Uri.parse(
-      '${AppConfig.radioApiBaseUrl}/stations/${AppConfig.stationSlug}/channels',
+      '${AppConfig.radioApiBaseUrl}/stations/${AppConfig.stationSlug}',
     );
     final response = await _client.get(uri).timeout(const Duration(seconds: 10));
 
@@ -29,7 +29,7 @@ class RadioApiClient {
     }
 
     final decoded = jsonDecode(response.body);
-    final items = _extractList(decoded);
+    final items = _extractChannels(decoded);
 
     return items
         .whereType<Map>()
@@ -38,14 +38,18 @@ class RadioApiClient {
         .toList();
   }
 
-  List<dynamic> _extractList(dynamic decoded) {
-    if (decoded is List) return decoded;
+  List<dynamic> _extractChannels(dynamic decoded) {
     if (decoded is Map<String, dynamic>) {
-      final data = decoded['data'];
-      if (data is List) return data;
       final channels = decoded['channels'];
       if (channels is List) return channels;
+
+      final data = decoded['data'];
+      if (data is Map<String, dynamic>) {
+        final nestedChannels = data['channels'];
+        if (nestedChannels is List) return nestedChannels;
+      }
     }
+
     throw const RadioApiException('Formato inesperado en la respuesta de la API.');
   }
 
