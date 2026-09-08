@@ -60,6 +60,12 @@ class RadioPlayerController extends ChangeNotifier {
       final title = channel.frequency.isNotEmpty ? channel.frequency : channel.name;
       final subtitle = channel.city.isNotEmpty ? channel.city : 'Chiapas';
 
+      // just_audio_background can retain the previous MediaItem in Android's
+      // media notification when replacing one live stream directly with another.
+      // Stopping first forces Android to release the current media item so the
+      // new station metadata is published immediately.
+      await _player.stop();
+
       await _player.setAudioSource(
         AudioSource.uri(
           Uri.parse(channel.streamUrl),
