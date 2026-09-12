@@ -189,16 +189,31 @@ class _SongRequestPageState extends State<SongRequestPage> {
                   const SizedBox(height: 24),
                   DropdownButtonFormField<Channel>(
                     value: _selectedChannel,
+                    isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Estación',
                       prefixIcon: Icon(Icons.radio_rounded),
                     ),
+                    selectedItemBuilder: (context) => channels
+                        .map(
+                          (channel) => Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              '${channel.frequency}${channel.city.isNotEmpty ? ' · ${channel.city}' : ''}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
+                        .toList(),
                     items: channels
                         .map(
                           (channel) => DropdownMenuItem(
                             value: channel,
                             child: Text(
                               '${channel.frequency}${channel.city.isNotEmpty ? ' · ${channel.city}' : ''}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         )
