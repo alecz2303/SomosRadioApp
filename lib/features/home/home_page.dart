@@ -7,6 +7,7 @@ import '../../core/config/app_config.dart';
 import '../../core/models/channel.dart';
 import '../../core/theme/app_theme.dart';
 import '../news/latest_content_page.dart';
+import '../participation/song_request_page.dart';
 import '../promotions/promotions_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -52,7 +53,6 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _playChannel(Channel channel) async {
     await _radioPlayer.playChannel(channel);
-
     if (!mounted || _radioPlayer.errorMessage == null) return;
 
     ScaffoldMessenger.of(context)
@@ -320,7 +320,6 @@ class _PersistentPlayerRoute extends StatelessWidget {
       animation: radioPlayer,
       builder: (context, _) {
         final channel = radioPlayer.currentChannel;
-
         return Scaffold(
           body: child,
           bottomNavigationBar: Column(
@@ -493,16 +492,10 @@ class _StationCard extends StatelessWidget {
                     const SizedBox(height: 7),
                     Text(
                       channel.frequency,
-                      style: const TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w900,
-                      ),
+                      style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w900),
                     ),
                     if (subtitle.isNotEmpty)
-                      Text(
-                        subtitle,
-                        style: const TextStyle(color: Colors.white60),
-                      ),
+                      Text(subtitle, style: const TextStyle(color: Colors.white60)),
                   ],
                 ),
               ),
@@ -667,6 +660,12 @@ class _ParticipatePage extends StatelessWidget {
     }
   }
 
+  void _openSongRequest(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const SongRequestPage()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -688,11 +687,20 @@ class _ParticipatePage extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             const Text(
-              'Escríbenos directamente por WhatsApp. Elige la estación con la que quieres comunicarte.',
+              'Participa directamente desde la app o escríbenos por WhatsApp.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.white60, height: 1.45),
             ),
             const SizedBox(height: 28),
+            _ActionFeature(
+              icon: Icons.music_note_rounded,
+              title: 'Pide tu canción',
+              text: 'Envía canción, artista y dedicatoria al panel de Somos Radio.',
+              onTap: () => _openSongRequest(context),
+            ),
+            const SizedBox(height: 22),
+            const _SectionTitle(title: 'WhatsApp'),
+            const SizedBox(height: 12),
             _ContactCard(
               title: 'Somos Radio 89.1 FM',
               subtitle: 'Tuxtla Gutiérrez',
@@ -718,11 +726,6 @@ class _ParticipatePage extends StatelessWidget {
             const _SectionTitle(title: 'Más formas de participar'),
             const SizedBox(height: 12),
             const _FutureFeature(
-              icon: Icons.music_note_rounded,
-              title: 'Pide tu canción',
-              text: 'Funcionalidad preparada para futuras dinámicas de la estación.',
-            ),
-            const _FutureFeature(
               icon: Icons.emoji_events_rounded,
               title: 'Concursos y dinámicas',
               text: 'Un espacio para activar promociones y participación desde la app.',
@@ -736,12 +739,75 @@ class _ParticipatePage extends StatelessWidget {
               const SizedBox(height: 24),
               const Center(
                 child: Text(
-                  'Funciones futuras mostradas como concepto',
+                  'Concepto demostrativo · Propuesta no oficial',
                   style: TextStyle(color: Colors.white30, fontSize: 10),
                 ),
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionFeature extends StatelessWidget {
+  const _ActionFeature({
+    required this.icon,
+    required this.title,
+    required this.text,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String text;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: AppTheme.orange.withValues(alpha: .14),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: AppTheme.orange),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+                    const SizedBox(height: 4),
+                    Text(
+                      text,
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 11,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                color: AppTheme.orange,
+                size: 17,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -941,9 +1007,7 @@ class _MiniPlayer extends StatelessWidget {
                           ),
                         )
                       : Icon(
-                          isPlaying
-                              ? Icons.pause_rounded
-                              : Icons.play_arrow_rounded,
+                          isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                         ),
                   style: IconButton.styleFrom(
                     backgroundColor: AppTheme.orange,
@@ -1108,9 +1172,7 @@ class _NowPlayingSheet extends StatelessWidget {
                           ),
                         )
                       : Icon(
-                          isPlaying
-                              ? Icons.pause_rounded
-                              : Icons.play_arrow_rounded,
+                          isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                           size: 44,
                         ),
                 ),
@@ -1144,9 +1206,7 @@ class _StationSwitchButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected
-          ? AppTheme.orange
-          : Colors.white.withValues(alpha: .05),
+      color: selected ? AppTheme.orange : Colors.white.withValues(alpha: .05),
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: selected || disabled ? null : () => onTap(),
