@@ -38,6 +38,73 @@ class RadioApiClient {
         .toList();
   }
 
+  Future<SongRequestResult> submitSongRequest({
+    required String channelSlug,
+    required String listenerName,
+    required String song,
+    required String artist,
+    String? dedication,
+  }) async {
+    if (AppConfig.radioApiBaseUrl.isEmpty) {
+      throw const RadioApiException('La API no está configurada.');
+    }
+
+    final uri = Uri.parse('${AppConfig.radioApiBaseUrl}/song-requests');
+    final response = await _client
+        .post(
+          uri,
+          headers: const {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({
+            'station_slug': AppConfig.stationSlug,
+            'channel_slug': channelSlug,
+            'listener_name': listenerName.trim(),
+            'song': song.trim(),
+            'artist': artist.trim(),
+            'dedication': dedication?.trim(),
+          }),
+        )
+        .timeout(const Duration(seconds: 12));
+
+    dynamic decoded;
+    try {
+      decoded = jsonDecode(response.body);
+    } catch (_) {
+      decoded = null;
+    }
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      String message = 'No fue posible enviar la solicitud.';
+      if (decoded is Map<String, dynamic>) {
+        final apiMessage = decoded['message']?.toString().trim();
+        if (apiMessage != null && apiMessage.isNotEmpty) {
+          message = apiMessage;
+        }
+      }
+      throw RadioApiException(message);
+    }
+
+    if (decoded is! Map<String, dynamic>) {
+      throw const RadioApiException('Formato inesperado en la respuesta de la API.');
+    }
+
+    final data = decoded['data'];
+    if (data is! Map) {
+      throw const RadioApiException('La API no devolvió la solicitud creada.');
+    }
+
+    final mapped = data.cast<String, dynamic>();
+    return SongRequestResult(
+      id: mapped['id'] as int?,
+      status: mapped['status']?.toString() ?? 'new',
+      station: mapped['station']?.toString() ?? 'Somos Radio',
+      channel: mapped['channel']?.toString() ?? '',
+      message: decoded['message']?.toString() ?? 'Solicitud recibida correctamente.',
+    );
+  }
+
   List<dynamic> _extractChannels(dynamic decoded) {
     if (decoded is Map<String, dynamic>) {
       final channels = decoded['channels'];
@@ -79,6 +146,22 @@ class RadioApiClient {
       },
     ),
   ];
+}
+
+class SongRequestResult {
+  const SongRequestResult({
+    required this.id,
+    required this.status,
+    required this.station,
+    required this.channel,
+    required this.message,
+  });
+
+  final int? id;
+  final String status;
+  final String station;
+  final String channel;
+  final String message;
 }
 
 class RadioApiException implements Exception {
