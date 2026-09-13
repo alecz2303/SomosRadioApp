@@ -41,6 +41,21 @@ class RadioStationCatalog {
     }
     return null;
   }
+
+  static Uri? artworkUri(String slug) {
+    switch (slug) {
+      case 'somos-radio-89-1':
+        return Uri.parse(
+          'https://raw.githubusercontent.com/alecz2303/SomosRadioApp/main/assets/stations/somos_89_1.webp',
+        );
+      case 'somos-radio-102-9':
+        return Uri.parse(
+          'https://raw.githubusercontent.com/alecz2303/SomosRadioApp/main/assets/stations/somos_102_9.webp',
+        );
+      default:
+        return null;
+    }
+  }
 }
 
 class RadioAudioHandler extends BaseAudioHandler {
@@ -70,10 +85,12 @@ class RadioAudioHandler extends BaseAudioHandler {
     final item = MediaItem(
       id: channel.slug,
       album: 'Somos Radio Chiapas',
-      title: channel.frequency,
+      title: channel.displayName,
       artist: channel.city.isNotEmpty ? channel.city : 'Chiapas',
       displayTitle: channel.displayName,
       displaySubtitle: channel.city.isNotEmpty ? channel.city : 'Chiapas',
+      displayDescription: 'En vivo',
+      artUri: RadioStationCatalog.artworkUri(channel.slug),
       isLive: true,
       extras: {
         'channel_id': channel.id,
