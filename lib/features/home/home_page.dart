@@ -6,6 +6,7 @@ import '../../core/audio/radio_player_controller.dart';
 import '../../core/config/app_config.dart';
 import '../../core/models/channel.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/station_artwork.dart';
 import '../news/latest_content_page.dart';
 import '../participation/song_request_page.dart';
 import '../promotions/promotions_page.dart';
@@ -468,9 +469,15 @@ class _StationCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(24),
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(16),
           child: Row(
             children: [
+              StationArtwork(
+                channel: channel,
+                size: 74,
+                borderRadius: 18,
+              ),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -492,17 +499,29 @@ class _StationCard extends StatelessWidget {
                     const SizedBox(height: 7),
                     Text(
                       channel.frequency,
-                      style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w900),
+                      style: const TextStyle(
+                        fontSize: 25,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                     if (subtitle.isNotEmpty)
-                      Text(subtitle, style: const TextStyle(color: Colors.white60)),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white60,
+                          fontSize: 11,
+                        ),
+                      ),
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
               AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
-                width: 58,
-                height: 58,
+                width: 52,
+                height: 52,
                 decoration: BoxDecoration(
                   color: selected ? Colors.white : AppTheme.orange,
                   shape: BoxShape.circle,
@@ -510,8 +529,8 @@ class _StationCard extends StatelessWidget {
                 alignment: Alignment.center,
                 child: buffering
                     ? const SizedBox(
-                        width: 23,
-                        height: 23,
+                        width: 21,
+                        height: 21,
                         child: CircularProgressIndicator(
                           strokeWidth: 2.5,
                           color: Colors.black,
@@ -520,7 +539,7 @@ class _StationCard extends StatelessWidget {
                     : Icon(
                         playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
                         color: Colors.black,
-                        size: 34,
+                        size: 31,
                       ),
               ),
             ],
@@ -961,17 +980,18 @@ class _MiniPlayer extends StatelessWidget {
           decoration: const BoxDecoration(
             border: Border(top: BorderSide(color: Color(0xFF2A2A2A))),
           ),
-          padding: const EdgeInsets.fromLTRB(18, 10, 12, 10),
+          padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
           child: SafeArea(
             top: false,
             bottom: false,
             child: Row(
               children: [
-                Icon(
-                  isPlaying ? Icons.graphic_eq_rounded : Icons.radio_rounded,
-                  color: AppTheme.orange,
+                StationArtwork(
+                  channel: channel,
+                  size: 44,
+                  borderRadius: 11,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 11),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -979,6 +999,8 @@ class _MiniPlayer extends StatelessWidget {
                     children: [
                       Text(
                         channel.displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                       Text(
@@ -1053,7 +1075,7 @@ class _NowPlayingSheet extends StatelessWidget {
         .join(' · ');
 
     return Container(
-      height: MediaQuery.sizeOf(context).height * .78,
+      height: MediaQuery.sizeOf(context).height * .82,
       decoration: const BoxDecoration(
         color: Color(0xFF0C0C0C),
         borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
@@ -1072,7 +1094,7 @@ class _NowPlayingSheet extends StatelessWidget {
                   borderRadius: BorderRadius.circular(99),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -1089,30 +1111,20 @@ class _NowPlayingSheet extends StatelessWidget {
                   ),
                 ],
               ),
-              const Spacer(),
-              Container(
-                width: 145,
-                height: 145,
-                decoration: BoxDecoration(
-                  color: AppTheme.orange,
-                  borderRadius: BorderRadius.circular(36),
-                ),
-                child: const Icon(Icons.radio_rounded, size: 76, color: Colors.black),
-              ),
               const SizedBox(height: 22),
-              Text(
-                'SOMOS RADIO',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Colors.white54,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 2,
-                    ),
+              StationArtwork(
+                channel: channel,
+                size: 190,
+                borderRadius: 34,
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 18),
               Text(
                 channel.frequency,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w900),
+                style: const TextStyle(
+                  fontSize: 34,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
               if (stationSubtitle.isNotEmpty) ...[
                 const SizedBox(height: 4),
@@ -1123,7 +1135,7 @@ class _NowPlayingSheet extends StatelessWidget {
                 ),
               ],
               if (channels.length > 1) ...[
-                const SizedBox(height: 22),
+                const SizedBox(height: 20),
                 const Text(
                   'CAMBIAR ESTACIÓN',
                   style: TextStyle(
@@ -1177,7 +1189,7 @@ class _NowPlayingSheet extends StatelessWidget {
                         ),
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               const Text(
                 'Transmisión en vivo',
                 style: TextStyle(color: Colors.white38, fontSize: 12),
