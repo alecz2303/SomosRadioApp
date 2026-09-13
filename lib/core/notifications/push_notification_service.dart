@@ -5,6 +5,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
 import '../api/radio_api_client.dart';
+import 'push_navigation.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -15,6 +16,7 @@ class PushNotificationService {
   PushNotificationService._();
 
   static StreamSubscription<String>? _tokenRefreshSubscription;
+  static StreamSubscription<RemoteMessage>? _openedAppSubscription;
 
   static Future<void> initialize() async {
     await Firebase.initializeApp();
@@ -41,12 +43,31 @@ class PushNotificationService {
       },
     );
 
+    final initialMessage = await messaging.getInitialMessage();
+    if (initialMessage != null) {
+      _handleMessageTap(initialMessage);
+    }
+
+    await _openedAppSubscription?.cancel();
+    _openedAppSubscription = FirebaseMessaging.onMessageOpenedApp.listen(
+      _handleMessageTap,
+      onError: (Object error, StackTrace stackTrace) {
+        debugPrint('FCM opened-app error: $error');
+      },
+    );
+
     FirebaseMessaging.onMessage.listen((message) {
       debugPrint(
         'FCM foreground message: ${message.messageId ?? 'sin-id'} '
         '${message.notification?.title ?? ''}',
       );
     });
+  }
+
+  static void _handleMessageTap(RemoteMessage message) {
+    final action = message.data['action']?.toString();
+    debugPrint('FCM tap action: ${action ?? 'open-app'}');
+    PushNavigation.request(action);
   }
 
   static Future<void> _registerToken(String token) async {
