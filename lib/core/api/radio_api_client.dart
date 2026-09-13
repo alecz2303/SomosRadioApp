@@ -105,6 +105,40 @@ class RadioApiClient {
     );
   }
 
+  Future<void> registerPushDevice({
+    required String token,
+    String platform = 'android',
+    String? appVersion,
+    String? deviceName,
+  }) async {
+    if (AppConfig.radioApiBaseUrl.isEmpty) {
+      throw const RadioApiException('La API no está configurada.');
+    }
+
+    final uri = Uri.parse('${AppConfig.radioApiBaseUrl}/push-devices');
+    final response = await _client
+        .post(
+          uri,
+          headers: const {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({
+            'token': token,
+            'platform': platform,
+            if (appVersion != null) 'app_version': appVersion,
+            if (deviceName != null) 'device_name': deviceName,
+          }),
+        )
+        .timeout(const Duration(seconds: 12));
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw RadioApiException(
+        'No fue posible registrar el dispositivo (${response.statusCode}).',
+      );
+    }
+  }
+
   List<dynamic> _extractChannels(dynamic decoded) {
     if (decoded is Map<String, dynamic>) {
       final channels = decoded['channels'];
