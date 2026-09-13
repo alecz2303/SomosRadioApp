@@ -26,3 +26,5 @@ flutter:
   uses-material-design: true
   assets:
     - assets/branding/somos_logo.svg
+    - assets/stations/somos_89_1.webp
+    - assets/stations/somos_102_9.webp
