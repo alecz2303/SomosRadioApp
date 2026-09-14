@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/api/radio_api_client.dart';
 import '../../core/models/ad_campaign.dart';
@@ -17,6 +18,8 @@ class BrandSplashPage extends StatefulWidget {
 
 class _BrandSplashPageState extends State<BrandSplashPage>
     with SingleTickerProviderStateMixin {
+  static const _splashRotationKey = 'splash_ad_rotation_index';
+
   late final AnimationController _animationController;
   late final Animation<double> _fadeAnimation;
   late final Animation<double> _scaleAnimation;
@@ -57,12 +60,26 @@ class _BrandSplashPageState extends State<BrandSplashPage>
     }
   }
 
+  Future<AdCampaign?> _nextSplashCampaign(List<AdCampaign> ads) async {
+    if (ads.isEmpty) return null;
+    if (ads.length == 1) return ads.first;
+
+    final preferences = await SharedPreferences.getInstance();
+    final currentIndex = preferences.getInt(_splashRotationKey) ?? 0;
+    final normalizedIndex = currentIndex % ads.length;
+    final nextIndex = (normalizedIndex + 1) % ads.length;
+
+    await preferences.setInt(_splashRotationKey, nextIndex);
+    return ads[normalizedIndex];
+  }
+
   Future<void> _openNext() async {
     final ads = await _splashAds;
+    final campaign = await _nextSplashCampaign(ads);
     if (!mounted) return;
 
-    final Widget nextPage = ads.isNotEmpty
-        ? SplashAdPage(apiClient: _apiClient, campaign: ads.first)
+    final Widget nextPage = campaign != null
+        ? SplashAdPage(apiClient: _apiClient, campaign: campaign)
         : HomePage(apiClient: _apiClient);
 
     Navigator.of(context).pushReplacement(
