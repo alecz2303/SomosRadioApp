@@ -9,9 +9,9 @@ Future<void> initializeRadioAudioService() async {
     builder: RadioAudioHandler.new,
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.alecz.somos_radio.audio',
-      androidNotificationChannelName: 'Somos Radio',
+      androidNotificationChannelName: 'Somos Radio · En vivo',
       androidNotificationOngoing: true,
-      androidStopForegroundOnPause: true,
+      androidStopForegroundOnPause: false,
     ),
   );
 }
