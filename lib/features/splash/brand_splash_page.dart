@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../core/api/radio_api_client.dart';
+import '../../core/models/ad_campaign.dart';
+import '../ads/splash_ad_page.dart';
 import '../home/home_page.dart';
 
 class BrandSplashPage extends StatefulWidget {
@@ -18,11 +20,16 @@ class _BrandSplashPageState extends State<BrandSplashPage>
   late final AnimationController _animationController;
   late final Animation<double> _fadeAnimation;
   late final Animation<double> _scaleAnimation;
+  late final RadioApiClient _apiClient;
+  late final Future<List<AdCampaign>> _splashAds;
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
+    _apiClient = RadioApiClient();
+    _splashAds = _loadSplashAds();
+
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 650),
@@ -39,16 +46,29 @@ class _BrandSplashPageState extends State<BrandSplashPage>
     );
 
     _animationController.forward();
-    _timer = Timer(const Duration(milliseconds: 1400), _openHome);
+    _timer = Timer(const Duration(milliseconds: 1400), _openNext);
   }
 
-  void _openHome() {
+  Future<List<AdCampaign>> _loadSplashAds() async {
+    try {
+      return await _apiClient.fetchAds(placement: 'splash');
+    } catch (_) {
+      return const <AdCampaign>[];
+    }
+  }
+
+  Future<void> _openNext() async {
+    final ads = await _splashAds;
     if (!mounted) return;
+
+    final Widget nextPage = ads.isNotEmpty
+        ? SplashAdPage(apiClient: _apiClient, campaign: ads.first)
+        : HomePage(apiClient: _apiClient);
+
     Navigator.of(context).pushReplacement(
       PageRouteBuilder<void>(
         transitionDuration: const Duration(milliseconds: 320),
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            HomePage(apiClient: RadioApiClient()),
+        pageBuilder: (context, animation, secondaryAnimation) => nextPage,
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },
