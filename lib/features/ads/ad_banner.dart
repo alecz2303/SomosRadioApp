@@ -130,7 +130,7 @@ class _AdBannerState extends State<AdBanner> {
         ClipRRect(
           borderRadius: BorderRadius.circular(20),
           child: AspectRatio(
-            aspectRatio: 16 / 6,
+            aspectRatio: 1200 / 450,
             child: PageView.builder(
               controller: _pageController,
               itemCount: widget.campaigns.length,
@@ -148,7 +148,8 @@ class _AdBannerState extends State<AdBanner> {
                         : () => _openAd(campaign),
                     child: Image.network(
                       campaign.imageUrl,
-                      fit: BoxFit.cover,
+                      fit: BoxFit.contain,
+                      alignment: Alignment.center,
                       loadingBuilder: (context, child, progress) {
                         if (progress == null) return child;
                         return const Center(
