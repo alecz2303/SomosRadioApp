@@ -63,15 +63,23 @@ class RadioAudioHandler extends BaseAudioHandler {
     _player.playbackEventStream.listen(
       _broadcastState,
       onError: (Object error, StackTrace stackTrace) {
-        customEvent.add({
-          'type': 'error',
-          'message': 'No fue posible reproducir la transmisión.',
-        });
+        _scheduleReconnect();
       },
     );
+
+    _player.processingStateStream.listen((state) {
+      if (state == ProcessingState.completed && _shouldBePlaying) {
+        _scheduleReconnect();
+      }
+    });
   }
 
   final AudioPlayer _player = AudioPlayer();
+  Channel? _currentChannel;
+  Timer? _reconnectTimer;
+  bool _shouldBePlaying = false;
+  bool _reconnecting = false;
+  int _reconnectAttempt = 0;
 
   Future<void> _playChannel(Channel channel) async {
     if (channel.streamUrl.trim().isEmpty) {
@@ -81,6 +89,11 @@ class RadioAudioHandler extends BaseAudioHandler {
       });
       return;
     }
+
+    _reconnectTimer?.cancel();
+    _currentChannel = channel;
+    _shouldBePlaying = true;
+    _reconnectAttempt = 0;
 
     final item = MediaItem(
       id: channel.slug,
@@ -106,11 +119,53 @@ class RadioAudioHandler extends BaseAudioHandler {
 
     mediaItem.add(item);
 
-    // Releasing the previous live source first also guarantees that Android
-    // refreshes the media notification metadata when switching stations.
-    await _player.stop();
-    await _player.setUrl(channel.streamUrl);
-    await _player.play();
+    try {
+      await _player.stop();
+      await _player.setUrl(channel.streamUrl);
+      if (_shouldBePlaying && _currentChannel?.slug == channel.slug) {
+        await _player.play();
+      }
+    } catch (_) {
+      _scheduleReconnect();
+    }
+  }
+
+  void _scheduleReconnect() {
+    if (!_shouldBePlaying || _currentChannel == null || _reconnecting) return;
+    if (_reconnectTimer?.isActive ?? false) return;
+
+    final delays = <int>[2, 4, 8, 12, 20];
+    final index = _reconnectAttempt.clamp(0, delays.length - 1);
+    final delay = Duration(seconds: delays[index]);
+    _reconnectAttempt++;
+
+    _reconnectTimer = Timer(delay, _reconnect);
+  }
+
+  Future<void> _reconnect() async {
+    final channel = _currentChannel;
+    if (!_shouldBePlaying || channel == null || _reconnecting) return;
+
+    _reconnecting = true;
+    try {
+      await _player.stop();
+      await _player.setUrl(channel.streamUrl);
+      if (_shouldBePlaying && _currentChannel?.slug == channel.slug) {
+        await _player.play();
+        _reconnectAttempt = 0;
+        customEvent.add({'type': 'reconnected'});
+      }
+    } catch (_) {
+      customEvent.add({
+        'type': 'reconnecting',
+        'message': 'Reconectando la transmisión…',
+      });
+    } finally {
+      _reconnecting = false;
+      if (_shouldBePlaying && !_player.playing) {
+        _scheduleReconnect();
+      }
+    }
   }
 
   @override
@@ -159,13 +214,29 @@ class RadioAudioHandler extends BaseAudioHandler {
   }
 
   @override
-  Future<void> play() => _player.play();
+  Future<void> play() async {
+    if (_currentChannel == null) return;
+    _shouldBePlaying = true;
+    try {
+      await _player.play();
+      _reconnectAttempt = 0;
+    } catch (_) {
+      _scheduleReconnect();
+    }
+  }
 
   @override
-  Future<void> pause() => _player.pause();
+  Future<void> pause() async {
+    _shouldBePlaying = false;
+    _reconnectTimer?.cancel();
+    await _player.pause();
+  }
 
   @override
   Future<void> stop() async {
+    _shouldBePlaying = false;
+    _reconnectTimer?.cancel();
+    _currentChannel = null;
     await _player.stop();
     mediaItem.add(null);
     playbackState.add(
@@ -178,6 +249,10 @@ class RadioAudioHandler extends BaseAudioHandler {
   }
 
   void _broadcastState(PlaybackEvent event) {
+    if (_player.playing) {
+      _reconnectAttempt = 0;
+    }
+
     playbackState.add(
       PlaybackState(
         controls: [
