@@ -108,11 +108,18 @@ class _SplashAdPageState extends State<SplashAdPage> {
           if (_imageReady)
             GestureDetector(
               onTap: widget.campaign.targetUrl == null ? null : _openAd,
-              child: Image.network(
-                widget.campaign.imageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const ColoredBox(
-                  color: Color(0xFF0B0B0B),
+              child: ColoredBox(
+                color: Colors.black,
+                child: SafeArea(
+                  bottom: false,
+                  child: Image.network(
+                    widget.campaign.imageUrl,
+                    fit: BoxFit.contain,
+                    alignment: Alignment.center,
+                    errorBuilder: (_, __, ___) => const ColoredBox(
+                      color: Color(0xFF0B0B0B),
+                    ),
+                  ),
                 ),
               ),
             )
