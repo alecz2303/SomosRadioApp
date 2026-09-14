@@ -1,342 +1,250 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-import '../../core/api/radio_api_client.dart';
-import '../../core/models/channel.dart';
+import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
+import 'song_request_form_page.dart';
 
-class SongRequestPage extends StatefulWidget {
+class SongRequestPage extends StatelessWidget {
   const SongRequestPage({super.key});
 
-  @override
-  State<SongRequestPage> createState() => _SongRequestPageState();
-}
+  Future<void> _openWhatsApp(
+    BuildContext context,
+    String number,
+    String station,
+  ) async {
+    final text = Uri.encodeComponent(
+      'Hola Somos Radio, les escribo desde la app. Estoy escuchando $station.',
+    );
+    final uri = Uri.parse('https://wa.me/$number?text=$text');
 
-class _SongRequestPageState extends State<SongRequestPage> {
-  final _formKey = GlobalKey<FormState>();
-  final _apiClient = RadioApiClient();
-  final _nameController = TextEditingController();
-  final _songController = TextEditingController();
-  final _artistController = TextEditingController();
-  final _dedicationController = TextEditingController();
-
-  late Future<List<Channel>> _channelsFuture;
-  Channel? _selectedChannel;
-  bool _submitting = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _channelsFuture = _apiClient.fetchSomosRadioChannels();
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _songController.dispose();
-    _artistController.dispose();
-    _dedicationController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    final channel = _selectedChannel;
-    if (channel == null) {
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecciona una estación.')),
+        const SnackBar(content: Text('No fue posible abrir WhatsApp.')),
       );
-      return;
-    }
-
-    setState(() => _submitting = true);
-
-    try {
-      final result = await _apiClient.submitSongRequest(
-        channelSlug: channel.slug,
-        listenerName: _nameController.text,
-        song: _songController.text,
-        artist: _artistController.text,
-        dedication: _dedicationController.text,
-      );
-
-      if (!mounted) return;
-
-      await showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          icon: const Icon(
-            Icons.check_circle_rounded,
-            color: AppTheme.orange,
-            size: 54,
-          ),
-          title: const Text('¡Solicitud enviada!'),
-          content: Text(
-            '${result.message}\n\n${channel.displayName}${channel.city.isNotEmpty ? ' · ${channel.city}' : ''}',
-            textAlign: TextAlign.center,
-          ),
-          actionsAlignment: MainAxisAlignment.center,
-          actions: [
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Listo'),
-            ),
-          ],
-        ),
-      );
-
-      _songController.clear();
-      _artistController.clear();
-      _dedicationController.clear();
-    } on RadioApiException catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(error.message)));
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(
-            content: Text('No fue posible enviar la solicitud. Intenta nuevamente.'),
-          ),
-        );
-    } finally {
-      if (mounted) setState(() => _submitting = false);
     }
   }
 
-  String? _required(String? value, String label) {
-    if (value == null || value.trim().isEmpty) return 'Escribe $label.';
-    return null;
+  void _openSongRequest(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const SongRequestFormPage()),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Pide tu canción')),
+      appBar: AppBar(title: const Text('Participa')),
       body: SafeArea(
-        child: FutureBuilder<List<Channel>>(
-          future: _channelsFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            if (snapshot.hasError) {
-              return _LoadError(
-                onRetry: () {
-                  setState(() {
-                    _channelsFuture = _apiClient.fetchSomosRadioChannels();
-                  });
-                },
-              );
-            }
-
-            final channels = snapshot.data ?? const <Channel>[];
-            if (channels.isEmpty) {
-              return const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text('No hay estaciones disponibles en este momento.'),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 36),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(22),
+              decoration: BoxDecoration(
+                color: AppTheme.orange.withValues(alpha: .10),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: AppTheme.orange.withValues(alpha: .30),
                 ),
-              );
-            }
-
-            _selectedChannel ??= channels.first;
-
-            return Form(
-              key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 36),
+              ),
+              child: const Column(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: AppTheme.orange.withValues(alpha: .10),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: AppTheme.orange.withValues(alpha: .35),
-                      ),
-                    ),
-                    child: const Column(
-                      children: [
-                        Icon(
-                          Icons.music_note_rounded,
-                          color: AppTheme.orange,
-                          size: 46,
-                        ),
-                        SizedBox(height: 12),
-                        Text(
-                          '¿Qué quieres escuchar?',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        SizedBox(height: 7),
-                        Text(
-                          'Manda tu canción y una dedicatoria directamente a Somos Radio.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.white60, height: 1.4),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  DropdownButtonFormField<Channel>(
-                    value: _selectedChannel,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Estación',
-                      prefixIcon: Icon(Icons.radio_rounded),
-                    ),
-                    selectedItemBuilder: (context) => channels
-                        .map(
-                          (channel) => Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              '${channel.frequency}${channel.city.isNotEmpty ? ' · ${channel.city}' : ''}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        )
-                        .toList(),
-                    items: channels
-                        .map(
-                          (channel) => DropdownMenuItem(
-                            value: channel,
-                            child: Text(
-                              '${channel.frequency}${channel.city.isNotEmpty ? ' · ${channel.city}' : ''}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: _submitting
-                        ? null
-                        : (channel) => setState(() => _selectedChannel = channel),
-                  ),
-                  const SizedBox(height: 14),
-                  TextFormField(
-                    controller: _nameController,
-                    textInputAction: TextInputAction.next,
-                    maxLength: 100,
-                    decoration: const InputDecoration(
-                      labelText: 'Tu nombre',
-                      prefixIcon: Icon(Icons.person_rounded),
-                    ),
-                    validator: (value) => _required(value, 'tu nombre'),
-                  ),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _songController,
-                    textInputAction: TextInputAction.next,
-                    maxLength: 150,
-                    decoration: const InputDecoration(
-                      labelText: 'Canción',
-                      prefixIcon: Icon(Icons.audiotrack_rounded),
-                    ),
-                    validator: (value) => _required(value, 'la canción'),
-                  ),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _artistController,
-                    textInputAction: TextInputAction.next,
-                    maxLength: 150,
-                    decoration: const InputDecoration(
-                      labelText: 'Artista',
-                      prefixIcon: Icon(Icons.mic_external_on_rounded),
-                    ),
-                    validator: (value) => _required(value, 'el artista'),
-                  ),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _dedicationController,
-                    maxLength: 1000,
-                    maxLines: 4,
-                    decoration: const InputDecoration(
-                      labelText: 'Dedicatoria (opcional)',
-                      alignLabelWithHint: true,
-                      prefixIcon: Padding(
-                        padding: EdgeInsets.only(bottom: 72),
-                        child: Icon(Icons.favorite_rounded),
-                      ),
-                      hintText: 'Ej. Para Mariana, que va saliendo del trabajo…',
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    height: 54,
-                    child: FilledButton.icon(
-                      onPressed: _submitting ? null : _submit,
-                      icon: _submitting
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.3,
-                                color: Colors.black,
-                              ),
-                            )
-                          : const Icon(Icons.send_rounded),
-                      label: Text(
-                        _submitting ? 'Enviando…' : 'Enviar solicitud',
-                        style: const TextStyle(fontWeight: FontWeight.w900),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  const Text(
-                    'La solicitud se envía al panel de administración de la estación. Su reproducción queda sujeta a la programación y criterio editorial de Somos Radio.',
+                  Icon(Icons.forum_rounded, color: AppTheme.orange, size: 52),
+                  SizedBox(height: 14),
+                  Text(
+                    'Tu voz también es parte de Somos',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white38,
-                      fontSize: 10,
-                      height: 1.4,
-                    ),
+                    style: TextStyle(fontSize: 23, fontWeight: FontWeight.w900),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Elige cómo quieres participar con Somos Radio.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white60, height: 1.4),
                   ),
                 ],
               ),
-            );
-          },
+            ),
+            const SizedBox(height: 22),
+            _ParticipationCard(
+              icon: Icons.music_note_rounded,
+              title: 'Pide tu canción',
+              subtitle: 'Envía tu canción y dedicatoria desde la app',
+              onTap: () => _openSongRequest(context),
+            ),
+            const SizedBox(height: 12),
+            _ParticipationCard(
+              icon: Icons.chat_rounded,
+              title: 'WhatsApp · 89.1 FM',
+              subtitle: 'Tuxtla Gutiérrez · +52 961 119 3641',
+              onTap: () => _openWhatsApp(
+                context,
+                '529611193641',
+                'Somos Radio 89.1 FM',
+              ),
+            ),
+            const SizedBox(height: 12),
+            _ParticipationCard(
+              icon: Icons.chat_rounded,
+              title: 'WhatsApp · 102.9 FM',
+              subtitle: 'San Cristóbal de las Casas · +52 967 678 2403',
+              onTap: () => _openWhatsApp(
+                context,
+                '529676782403',
+                'Somos Radio 102.9 FM',
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'MÁS FORMAS DE PARTICIPAR',
+              style: TextStyle(
+                color: Colors.white38,
+                letterSpacing: 2.1,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const _FutureFeature(
+              icon: Icons.emoji_events_rounded,
+              title: 'Concursos y dinámicas',
+              text: 'Próximamente',
+            ),
+            const SizedBox(height: 10),
+            const _FutureFeature(
+              icon: Icons.poll_rounded,
+              title: 'Encuestas',
+              text: 'Próximamente',
+            ),
+            if (AppConfig.isConceptDemo) ...[
+              const SizedBox(height: 24),
+              const Center(
+                child: Text(
+                  'Concepto demostrativo · Propuesta no oficial',
+                  style: TextStyle(color: Colors.white30, fontSize: 10),
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
   }
 }
 
-class _LoadError extends StatelessWidget {
-  const _LoadError({required this.onRetry});
+class _ParticipationCard extends StatelessWidget {
+  const _ParticipationCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
 
-  final VoidCallback onRetry;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.cloud_off_rounded, color: AppTheme.orange, size: 44),
-            const SizedBox(height: 12),
-            const Text(
-              'No pudimos cargar las estaciones.',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 14),
-            FilledButton(
-              onPressed: onRetry,
-              child: const Text('Reintentar'),
-            ),
-          ],
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: AppTheme.orange.withValues(alpha: .14),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: AppTheme.orange),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                color: AppTheme.orange,
+                size: 17,
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class _FutureFeature extends StatelessWidget {
+  const _FutureFeature({
+    required this.icon,
+    required this.title,
+    required this.text,
+  });
+
+  final IconData icon;
+  final String title;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: .04),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.white38),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white70,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  text,
+                  style: const TextStyle(
+                    color: Colors.white38,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
