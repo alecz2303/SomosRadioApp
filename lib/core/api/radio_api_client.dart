@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -11,6 +12,32 @@ class RadioApiClient {
 
   final http.Client _client;
 
+  Future<http.Response> _getWithRetry(
+    Uri uri, {
+    Duration timeout = const Duration(seconds: 10),
+    int attempts = 2,
+  }) async {
+    Object? lastError;
+
+    for (var attempt = 1; attempt <= attempts; attempt++) {
+      try {
+        return await _client
+            .get(uri, headers: const {'Accept': 'application/json'})
+            .timeout(timeout);
+      } on http.ClientException catch (error) {
+        lastError = error;
+      } on TimeoutException catch (error) {
+        lastError = error;
+      }
+
+      if (attempt < attempts) {
+        await Future<void>.delayed(const Duration(milliseconds: 350));
+      }
+    }
+
+    throw lastError ?? const RadioApiException('No fue posible conectar con la API.');
+  }
+
   Future<List<Channel>> fetchSomosRadioChannels() async {
     if (AppConfig.radioApiBaseUrl.isEmpty) {
       return _demoChannels;
@@ -19,7 +46,7 @@ class RadioApiClient {
     final uri = Uri.parse(
       '${AppConfig.radioApiBaseUrl}/stations/${AppConfig.stationSlug}',
     );
-    final response = await _client.get(uri).timeout(const Duration(seconds: 10));
+    final response = await _getWithRetry(uri);
 
     if (response.statusCode == 404 && AppConfig.isConceptDemo) {
       return _demoChannels;
@@ -51,7 +78,10 @@ class RadioApiClient {
       },
     );
 
-    final response = await _client.get(uri).timeout(const Duration(seconds: 3));
+    final response = await _getWithRetry(
+      uri,
+      timeout: const Duration(seconds: 3),
+    );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw RadioApiException(
         'No fue posible consultar la publicidad (${response.statusCode}).',
