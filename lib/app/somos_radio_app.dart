@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../core/audio/audio_service_manager.dart';
 import '../core/notifications/push_navigation.dart';
 import '../core/theme/app_theme.dart';
 import '../core/widgets/persistent_audio_bar.dart';
@@ -47,29 +48,43 @@ class _SomosRadioAppState extends State<SomosRadioApp> {
     });
   }
 
-  void _handleAction(String? action) {
+  Future<void> _handleAction(String? action) async {
     if (action == null || action.isEmpty) return;
 
     final navigator = _navigatorKey.currentState;
     if (navigator == null) return;
 
     Widget? destination;
-    switch (action) {
-      case 'live':
-        destination = const LivePage();
-        break;
-      case 'participate':
-        destination = const SongRequestPage();
-        break;
-      case 'latest':
-        destination = const LatestContentPage();
-        break;
-      default:
+
+    if (action.startsWith('play:')) {
+      final stationSlug = action.substring('play:'.length).trim();
+      if (stationSlug.isEmpty) {
         PushNavigation.clear(action);
         return;
+      }
+
+      PushNavigation.clear(action);
+      await radioAudioHandler.playFromMediaId(stationSlug);
+      if (!mounted) return;
+      destination = const LivePage();
+    } else {
+      switch (action) {
+        case 'live':
+          destination = const LivePage();
+          break;
+        case 'participate':
+          destination = const SongRequestPage();
+          break;
+        case 'latest':
+          destination = const LatestContentPage();
+          break;
+        default:
+          PushNavigation.clear(action);
+          return;
+      }
+      PushNavigation.clear(action);
     }
 
-    PushNavigation.clear(action);
     navigator.push(
       MaterialPageRoute(
         builder: (_) => PersistentAudioBar(child: destination!),
