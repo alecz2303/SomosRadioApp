@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../core/notifications/push_navigation.dart';
 import '../core/theme/app_theme.dart';
+import '../core/widgets/persistent_audio_bar.dart';
 import '../features/live/live_page.dart';
 import '../features/news/latest_content_page.dart';
 import '../features/participation/song_request_page.dart';
@@ -69,7 +70,11 @@ class _SomosRadioAppState extends State<SomosRadioApp> {
     }
 
     PushNavigation.clear(action);
-    navigator.push(MaterialPageRoute(builder: (_) => destination!));
+    navigator.push(
+      MaterialPageRoute(
+        builder: (_) => PersistentAudioBar(child: destination!),
+      ),
+    );
   }
 
   @override
