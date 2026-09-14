@@ -215,7 +215,7 @@ class _HomePageState extends State<HomePage> {
                     padding: const EdgeInsets.only(top: 4, bottom: 22),
                     child: AdBanner(
                       apiClient: widget.apiClient,
-                      campaign: ads.first,
+                      campaigns: ads,
                     ),
                   );
                 },
@@ -427,11 +427,7 @@ class _BrandHeader extends StatelessWidget {
             color: AppTheme.orange,
             shape: BoxShape.circle,
           ),
-          child: const Icon(
-            Icons.radio_rounded,
-            color: Colors.black,
-            size: 29,
-          ),
+          child: const Icon(Icons.radio_rounded, color: Colors.black, size: 29),
         ),
         const SizedBox(width: 13),
         const Expanded(
@@ -458,9 +454,7 @@ class _BrandHeader extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-              color: AppTheme.orange.withValues(alpha: .65),
-            ),
+            border: Border.all(color: AppTheme.orange.withValues(alpha: .65)),
           ),
           child: const Text(
             'CONCEPTO',
@@ -566,9 +560,7 @@ class _StationCard extends StatelessWidget {
                         ),
                       )
                     : Icon(
-                        playing
-                            ? Icons.pause_rounded
-                            : Icons.play_arrow_rounded,
+                        playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
                         color: Colors.black,
                         size: 31,
                       ),
@@ -676,10 +668,7 @@ class _ExploreCard extends StatelessWidget {
             children: [
               Icon(icon, color: AppTheme.orange),
               const SizedBox(height: 10),
-              Text(
-                title,
-                style: const TextStyle(fontWeight: FontWeight.w800),
-              ),
+              Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
               const SizedBox(height: 2),
               Text(
                 subtitle,
@@ -706,11 +695,7 @@ class _ApiError extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            const Icon(
-              Icons.cloud_off_rounded,
-              color: AppTheme.orange,
-              size: 36,
-            ),
+            const Icon(Icons.cloud_off_rounded, color: AppTheme.orange, size: 36),
             const SizedBox(height: 10),
             const Text(
               'No pudimos cargar las estaciones.',
@@ -723,10 +708,7 @@ class _ApiError extends StatelessWidget {
               style: const TextStyle(color: Colors.white54, fontSize: 11),
             ),
             const SizedBox(height: 12),
-            FilledButton(
-              onPressed: onRetry,
-              child: const Text('Reintentar'),
-            ),
+            FilledButton(onPressed: onRetry, child: const Text('Reintentar')),
           ],
         ),
       ),
@@ -777,11 +759,7 @@ class _MiniPlayer extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(14, 9, 8, 9),
           child: Row(
             children: [
-              StationArtwork(
-                channel: channel,
-                size: 42,
-                borderRadius: 10,
-              ),
+              StationArtwork(channel: channel, size: 42, borderRadius: 10),
               const SizedBox(width: 11),
               Expanded(
                 child: Column(
@@ -815,9 +793,7 @@ class _MiniPlayer extends StatelessWidget {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : Icon(
-                        isPlaying
-                            ? Icons.pause_rounded
-                            : Icons.play_arrow_rounded,
+                        isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                       ),
               ),
               IconButton(
@@ -874,23 +850,13 @@ class _NowPlayingSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 22),
-          StationArtwork(
-            channel: channel,
-            size: 160,
-            borderRadius: 28,
-          ),
+          StationArtwork(channel: channel, size: 160, borderRadius: 28),
           const SizedBox(height: 18),
           Text(
             channel.frequency,
-            style: const TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.w900,
-            ),
+            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900),
           ),
-          Text(
-            channel.city,
-            style: const TextStyle(color: Colors.white54),
-          ),
+          Text(channel.city, style: const TextStyle(color: Colors.white54)),
           const SizedBox(height: 20),
           FilledButton.tonalIcon(
             onPressed: isBuffering ? null : () => onToggle(),
@@ -900,11 +866,7 @@ class _NowPlayingSheet extends StatelessWidget {
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : Icon(
-                    isPlaying
-                        ? Icons.pause_rounded
-                        : Icons.play_arrow_rounded,
-                  ),
+                : Icon(isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded),
             label: Text(isPlaying ? 'Pausar' : 'Escuchar en vivo'),
           ),
           if (channels.length > 1) ...[
