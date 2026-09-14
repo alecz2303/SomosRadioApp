@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
+import '../models/ad_campaign.dart';
 import '../models/channel.dart';
 
 class RadioApiClient {
@@ -36,6 +37,63 @@ class RadioApiClient {
         .map((item) => Channel.fromJson(item.cast<String, dynamic>()))
         .where((channel) => channel.isActive)
         .toList();
+  }
+
+  Future<List<AdCampaign>> fetchAds({required String placement}) async {
+    if (AppConfig.radioApiBaseUrl.isEmpty) {
+      return const <AdCampaign>[];
+    }
+
+    final uri = Uri.parse('${AppConfig.radioApiBaseUrl}/ads').replace(
+      queryParameters: {
+        'station_slug': AppConfig.stationSlug,
+        'placement': placement,
+      },
+    );
+
+    final response = await _client.get(uri).timeout(const Duration(seconds: 3));
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw RadioApiException(
+        'No fue posible consultar la publicidad (${response.statusCode}).',
+      );
+    }
+
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map<String, dynamic> || decoded['data'] is! List) {
+      throw const RadioApiException(
+        'Formato inesperado en la respuesta de publicidad.',
+      );
+    }
+
+    return (decoded['data'] as List)
+        .whereType<Map>()
+        .map((item) => AdCampaign.fromJson(item.cast<String, dynamic>()))
+        .where((campaign) => campaign.imageUrl.isNotEmpty)
+        .toList();
+  }
+
+  Future<void> recordAdImpression(int campaignId) async {
+    await _recordAdEvent(campaignId, 'impression');
+  }
+
+  Future<void> recordAdClick(int campaignId) async {
+    await _recordAdEvent(campaignId, 'click');
+  }
+
+  Future<void> _recordAdEvent(int campaignId, String event) async {
+    if (AppConfig.radioApiBaseUrl.isEmpty) return;
+
+    final uri = Uri.parse(
+      '${AppConfig.radioApiBaseUrl}/ads/$campaignId/$event',
+    );
+
+    try {
+      await _client
+          .post(uri, headers: const {'Accept': 'application/json'})
+          .timeout(const Duration(seconds: 3));
+    } catch (_) {
+      // Las métricas nunca deben bloquear la experiencia del oyente.
+    }
   }
 
   Future<SongRequestResult> submitSongRequest({
