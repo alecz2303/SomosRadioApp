@@ -10,7 +10,7 @@ Future<void> initializeRadioAudioService() async {
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.alecz.somos_radio.audio',
       androidNotificationChannelName: 'Somos Radio · En vivo',
-      androidNotificationOngoing: true,
+      androidNotificationOngoing: false,
       androidStopForegroundOnPause: false,
     ),
   );
