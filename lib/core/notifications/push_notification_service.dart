@@ -44,12 +44,16 @@ class PushNotificationService {
 
     final token = await messaging.getToken();
     if (token != null && token.isNotEmpty) {
+      debugPrint('FCM ACTIVE TOKEN: $token');
       await _registerToken(token);
     }
 
     await _tokenRefreshSubscription?.cancel();
     _tokenRefreshSubscription = messaging.onTokenRefresh.listen(
-      (token) => _registerToken(token),
+      (token) {
+        debugPrint('FCM REFRESHED TOKEN: $token');
+        _registerToken(token);
+      },
       onError: (Object error, StackTrace stackTrace) {
         debugPrint('FCM token refresh error: $error');
       },
