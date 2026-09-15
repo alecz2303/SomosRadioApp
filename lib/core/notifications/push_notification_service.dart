@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../api/radio_api_client.dart';
@@ -20,6 +21,7 @@ class PushNotificationService {
   static const _channelName = 'Avisos de Somos Radio';
   static const _channelDescription =
       'Noticias, avisos y accesos directos de Somos Radio.';
+  static const _deviceChannel = MethodChannel('com.alecz.somos_radio/device');
 
   static final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
@@ -149,9 +151,24 @@ class PushNotificationService {
     PushNavigation.request(action);
   }
 
+  static Future<String?> _deviceKey() async {
+    if (defaultTargetPlatform != TargetPlatform.android) return null;
+    try {
+      final key = await _deviceChannel.invokeMethod<String>('getDeviceKey');
+      return key?.trim();
+    } catch (error) {
+      debugPrint('Device identity unavailable: $error');
+      return null;
+    }
+  }
+
   static Future<void> _registerToken(String token) async {
     try {
-      await RadioApiClient().registerPushDevice(token: token);
+      final deviceKey = await _deviceKey();
+      await RadioApiClient().registerPushDevice(
+        token: token,
+        deviceKey: deviceKey,
+      );
       debugPrint('FCM device registered with Radio API.');
     } catch (error) {
       debugPrint('FCM device registration failed: $error');
