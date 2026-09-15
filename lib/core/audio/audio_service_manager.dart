@@ -11,8 +11,8 @@ Future<void> initializeRadioAudioService() async {
       androidNotificationChannelId: 'com.alecz.somos_radio.audio',
       androidNotificationChannelName: 'Somos Radio · En vivo',
       androidNotificationChannelDescription: 'Controles de reproducción de Somos Radio',
-      androidNotificationOngoing: true,
-      androidStopForegroundOnPause: true,
+      androidNotificationOngoing: false,
+      androidStopForegroundOnPause: false,
     ),
   );
 }
