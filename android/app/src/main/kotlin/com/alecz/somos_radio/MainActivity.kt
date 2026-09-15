@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.content.ComponentName
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
@@ -19,6 +20,7 @@ class MainActivity : FlutterActivity() {
     companion object {
         private const val METHOD_CHANNEL = "com.alecz.somos_radio/media3"
         private const val EVENT_CHANNEL = "com.alecz.somos_radio/media3_events"
+        private const val DEVICE_CHANNEL = "com.alecz.somos_radio/device"
     }
 
     private var controllerFuture: ListenableFuture<MediaController>? = null
@@ -36,6 +38,21 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, DEVICE_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "getDeviceKey" -> {
+                        val androidId = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+                        if (androidId.isNullOrBlank()) {
+                            result.error("DEVICE_ID", "No se pudo obtener la identidad del dispositivo", null)
+                        } else {
+                            result.success("android:$androidId")
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
 
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, EVENT_CHANNEL)
             .setStreamHandler(object : EventChannel.StreamHandler {
