@@ -26,9 +26,7 @@ class MainActivity : FlutterActivity() {
     private var eventSink: EventChannel.EventSink? = null
 
     private val playerListener = object : Player.Listener {
-        override fun onEvents(player: Player, events: Player.Events) {
-            publishState(player)
-        }
+        override fun onEvents(player: Player, events: Player.Events) = publishState(player)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,28 +59,28 @@ class MainActivity : FlutterActivity() {
                             return@setMethodCallHandler
                         }
                         withController(result) { controller ->
-                            val item = SomosRadioPlaybackService.stationItem(
-                                slug = args["slug"]?.toString().orEmpty(),
-                                streamUrl = args["stream_url"]?.toString().orEmpty(),
-                                title = args["name"]?.toString().orEmpty(),
-                                city = args["city"]?.toString().orEmpty(),
-                                artworkUrl = args["artwork_url"]?.toString(),
+                            controller.setMediaItem(
+                                SomosRadioPlaybackService.stationItem(
+                                    slug = args["slug"]?.toString().orEmpty(),
+                                    streamUrl = args["stream_url"]?.toString().orEmpty(),
+                                    title = args["name"]?.toString().orEmpty(),
+                                    city = args["city"]?.toString().orEmpty(),
+                                    artworkUrl = args["artwork_url"]?.toString(),
+                                ),
                             )
-                            controller.setMediaItem(item)
                             controller.prepare()
                             controller.play()
+                            null
                         }
                     }
-                    "play" -> withController(result) { it.play() }
-                    "pause" -> withController(result) { it.pause() }
+                    "play" -> withController(result) { it.play(); null }
+                    "pause" -> withController(result) { it.pause(); null }
                     "stop" -> withController(result) {
                         it.stop()
                         it.clearMediaItems()
+                        null
                     }
-                    "state" -> withController(result) { controller ->
-                        result.success(stateMap(controller))
-                        return@withController
-                    }
+                    "state" -> withController(result) { stateMap(it) }
                     else -> result.notImplemented()
                 }
             }
@@ -107,12 +105,11 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun withController(result: MethodChannel.Result, action: (MediaController) -> Unit) {
+    private fun withController(result: MethodChannel.Result, action: (MediaController) -> Any?) {
         val current = mediaController
         if (current != null) {
             try {
-                action(current)
-                if (result !is CompletedResult) result.success(null)
+                result.success(action(current))
             } catch (error: Exception) {
                 result.error("MEDIA3_ERROR", error.message, null)
             }
@@ -130,8 +127,7 @@ class MainActivity : FlutterActivity() {
             try {
                 val controller = future.get()
                 mediaController = controller
-                action(controller)
-                result.success(null)
+                result.success(action(controller))
             } catch (error: Exception) {
                 result.error("MEDIA3_ERROR", error.message, null)
             }
@@ -175,7 +171,4 @@ class MainActivity : FlutterActivity() {
         controllerFuture = null
         super.onDestroy()
     }
-
-    /** Marker kept private so normal MethodChannel results remain one-shot. */
-    private interface CompletedResult
 }
