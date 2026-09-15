@@ -20,9 +20,11 @@ class PushNotificationService {
   static const _channelName = 'Avisos de Somos Radio';
   static const _channelDescription =
       'Noticias, avisos y accesos directos de Somos Radio.';
+  static const _deduplicationWindow = Duration(minutes: 5);
 
   static final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
+  static final Map<String, DateTime> _processedForegroundMessages = {};
 
   static StreamSubscription<String>? _tokenRefreshSubscription;
   static StreamSubscription<RemoteMessage>? _openedAppSubscription;
@@ -105,7 +107,32 @@ class PushNotificationService {
         ?.createNotificationChannel(channel);
   }
 
+  static bool _isDuplicateForegroundMessage(RemoteMessage message) {
+    final messageId = message.messageId;
+    if (messageId == null || messageId.isEmpty) return false;
+
+    final now = DateTime.now();
+    _processedForegroundMessages.removeWhere(
+      (_, processedAt) => now.difference(processedAt) > _deduplicationWindow,
+    );
+
+    if (_processedForegroundMessages.containsKey(messageId)) {
+      return true;
+    }
+
+    _processedForegroundMessages[messageId] = now;
+    return false;
+  }
+
   static Future<void> _handleForegroundMessage(RemoteMessage message) async {
+    if (_isDuplicateForegroundMessage(message)) {
+      debugPrint(
+        'FCM duplicate foreground message ignored: '
+        '${message.messageId ?? 'sin-id'}',
+      );
+      return;
+    }
+
     debugPrint(
       'FCM foreground message: ${message.messageId ?? 'sin-id'} '
       '${message.notification?.title ?? ''}',
